@@ -1,0 +1,76 @@
+{
+  "Chrome": {
+    "home": "Home",
+    "copilot": "Copilot",
+    "approvals": "Approvals",
+    "localeLabel": "Language"
+  },
+  "Home": {
+    "tateLabel": "OVERVIEW",
+    "title": "WorkshopOS",
+    "subtitle": "An AI-first, bilingual platform for running a workshop business — built under human approval.",
+    "typographyTateLabel": "TYPOGRAPHY",
+    "typographyHeading": "Bilingual typesetting",
+    "lineHeightLabel": "Body line-height token",
+    "localeLabel": "Active locale",
+    "sampleBody": "Space is the primary layout tool; density is earned, never default. Hairline rules organize content instead of boxes and shadows. One accent color, used sparingly and precisely.",
+    "signInPrompt": "Sign in to reach the copilot and the approval queue.",
+    "byline": "WorkshopOS by Rajkumar Rajagobalan"
+  },
+  "Auth": {
+    "tateLabel": "SIGN IN",
+    "heading": "Sign in",
+    "subtitle": "We email you a one-time link — no password.",
+    "emailLabel": "Email",
+    "sendLink": "Email me a link",
+    "linkSent": "Check your email for a sign-in link.",
+    "devLinkNote": "Dev mode: use this link to sign in.",
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as {email}",
+    "invalidLink": "That sign-in link is invalid or has expired.",
+    "unknownError": "Something went wrong. Please try again."
+  },
+  "Copilot": {
+    "tateLabel": "COPILOT",
+    "greeting": "Hi {name} — I'm your AI copilot. Describe what you'd like to do.",
+    "heading": "Copilot",
+    "subtitle": "Describe intent in plain language. Actions that change things are proposed first and wait for your approval.",
+    "placeholder": "e.g. ping the workshop system",
+    "send": "Send",
+    "planHeading": "Proposed plan",
+    "planEmpty": "No plan yet. Send a command to see the proposed actions.",
+    "step": "Step",
+    "approve": "Approve & run",
+    "reject": "Reject",
+    "executed": "Executed",
+    "reply": "Copilot",
+    "you": "You",
+    "notRecognized": "I can only run \"ping\" in this milestone. Try: ping the workshop system.",
+    "resultPong": "Pong — the system answered in both languages."
+  },
+  "Approvals": {
+    "tateLabel": "APPROVALS",
+    "heading": "Approval queue",
+    "subtitle": "Every AI action is logged to the ledger before it runs. Approve-tier actions wait here.",
+    "empty": "Nothing is waiting for approval.",
+    "colTool": "Tool",
+    "colTier": "Tier",
+    "colStatus": "Status",
+    "colRequested": "Requested",
+    "approve": "Approve & run",
+    "reject": "Reject",
+    "statusProposed": "Awaiting approval",
+    "statusExecuted": "Executed",
+    "statusRejected": "Rejected",
+    "statusFailed": "Failed"
+  },
+  "Tier": {
+    "auto": "auto",
+    "approve": "approve",
+    "owner_only": "owner"
+  },
+  "Common": {
+    "loading": "Loading…",
+    "error": "Error"
+  }
+}

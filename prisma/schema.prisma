@@ -1,0 +1,164 @@
+// WorkshopOS — Prisma schema.
+// M0 implements DATA_MODEL.md §2 (identity & tenancy) and §7 (AI operating layer),
+// plus the auth support table. Later milestones add the workshop/commerce/learning
+// domains. Bilingual content fields are JSONB { en, ja }; money (later) is integer
+// minor units + currency. IDs are UUIDs; every table carries created_at/updated_at.
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector, citext]
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  owner
+  staff
+  org_admin
+  participant
+}
+
+enum Locale {
+  en
+  ja
+}
+
+enum BillingMethod {
+  card
+  invoice_transfer
+}
+
+enum AiSurface {
+  copilot
+  concierge
+  scheduler
+}
+
+// Autonomy tiers (PRODUCT_SPEC §7 / COPILOT_TOOLS §cross-cutting).
+// `owner_only` is the ledger spelling of the `owner` tool tier.
+enum AiTier {
+  auto
+  approve
+  owner_only
+}
+
+enum AiActionStatus {
+  proposed
+  approved
+  executed
+  rejected
+  rolled_back
+  failed
+}
+
+// ── Identity & tenancy (DATA_MODEL §2) ───────────────────────────────────────
+
+model Organization {
+  id                     String        @id @default(uuid()) @db.Uuid
+  // (i18n) legal + display name: { en, ja }
+  name                   Json
+  billingEmail           String        @map("billing_email")
+  billingMethod          BillingMethod @default(card) @map("billing_method")
+  invoiceRegistrationNo  String?       @map("invoice_registration_no")
+  locale                 Locale        @default(ja)
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("organization")
+}
+
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  // stored lowercased; unique + a lower() index make it effectively case-insensitive
+  email          String   @unique
+  // (i18n-ish) { display, family, given } — supports JA family-name-first rendering
+  name           Json     @default("{}")
+  role           Role     @default(participant)
+  organizationId String?  @map("organization_id") @db.Uuid
+  locale         Locale   @default(ja)
+  timezone       String   @default("Asia/Tokyo")
+  notificationPrefs Json  @default("{}") @map("notification_prefs")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  aiActions    AiAction[]    @relation("initiatedBy")
+  approvals    AiAction[]    @relation("approvedBy")
+
+  @@index([organizationId])
+  @@map("user")
+}
+
+// ── Auth: email magic-link tokens ────────────────────────────────────────────
+
+model MagicLinkToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  email      String
+  // sha-256 of the token that travels in the link; the raw token is never stored
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("magic_link_token")
+}
+
+// ── AI operating layer (DATA_MODEL §7) ───────────────────────────────────────
+
+// The Ledger — append-only, never deleted. Every copilot/concierge/scheduler
+// tool call writes a row here BEFORE execution.
+model AiAction {
+  id          String         @id @default(uuid()) @db.Uuid
+  parentId    String?        @map("parent_id") @db.Uuid
+  initiatedById String?      @map("initiated_by") @db.Uuid
+  surface     AiSurface
+  toolName    String         @map("tool_name")
+  tier        AiTier
+  input       Json
+  output      Json?
+  status      AiActionStatus @default(proposed)
+  approvedById String?       @map("approved_by") @db.Uuid
+  reversalOf  String?        @map("reversal_of") @db.Uuid
+  // idempotency: a client-generated key makes tool retries safe
+  idempotencyKey String?     @unique @map("idempotency_key")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  parent      AiAction?  @relation("planChildren", fields: [parentId], references: [id])
+  children    AiAction[] @relation("planChildren")
+  initiatedBy User?      @relation("initiatedBy", fields: [initiatedById], references: [id])
+  approvedBy  User?      @relation("approvedBy", fields: [approvedById], references: [id])
+
+  @@index([status])
+  @@index([toolName])
+  @@index([parentId])
+  @@map("ai_action")
+}
+
+// pgvector-backed semantic search index (DATA_MODEL §7). The vector column is a
+// raw pgvector type; it is written via SQL, not Prisma Client, so it is typed
+// Unsupported here.
+model Embedding {
+  id         String                 @id @default(uuid()) @db.Uuid
+  entityType String                 @map("entity_type")
+  entityId   String                 @map("entity_id") @db.Uuid
+  locale     Locale
+  vector     Unsupported("vector(1536)")
+  textHash   String                 @map("text_hash")
+  createdAt  DateTime               @default(now()) @map("created_at")
+
+  @@unique([entityType, entityId, locale])
+  @@index([entityType])
+  @@map("embedding")
+}

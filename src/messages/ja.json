@@ -1,0 +1,76 @@
+{
+  "Chrome": {
+    "home": "ホーム",
+    "copilot": "コパイロット",
+    "approvals": "承認",
+    "localeLabel": "言語"
+  },
+  "Home": {
+    "tateLabel": "概要",
+    "title": "WorkshopOS",
+    "subtitle": "人の承認のもとで動く、AIファーストの二言語対応ワークショップ運営プラットフォームです。",
+    "typographyTateLabel": "文字組み",
+    "typographyHeading": "バイリンガル組版",
+    "lineHeightLabel": "本文の行間トークン",
+    "localeLabel": "現在のロケール",
+    "sampleBody": "余白こそが主役のレイアウト手段です。密度は必要なときにだけ与えます。箱や影ではなく、極細の罫線が情報を整えます。アクセントカラーはひとつだけ、控えめに正確に使います。",
+    "signInPrompt": "コパイロットと承認キューをご利用いただくには、サインインしてください。",
+    "byline": "WorkshopOS（制作：ラジクマール・ラジャゴバラン）"
+  },
+  "Auth": {
+    "tateLabel": "サインイン",
+    "heading": "サインイン",
+    "subtitle": "ワンタイムのリンクをメールでお送りします。パスワードは必要ありません。",
+    "emailLabel": "メールアドレス",
+    "sendLink": "リンクを送信",
+    "linkSent": "サインイン用のリンクをメールでご確認ください。",
+    "devLinkNote": "開発モード：このリンクからサインインできます。",
+    "signOut": "サインアウト",
+    "signedInAs": "{email} でサインイン中",
+    "invalidLink": "このサインインリンクは無効か、有効期限が切れています。",
+    "unknownError": "エラーが発生しました。お手数ですが、もう一度お試しください。"
+  },
+  "Copilot": {
+    "tateLabel": "コパイロット",
+    "greeting": "{name}さん、こんにちは。AIコパイロットです。ご用件をお聞かせください。",
+    "heading": "コパイロット",
+    "subtitle": "やりたいことを自然な言葉でお知らせください。変更を伴う操作は、まず提案としてご承認をお待ちします。",
+    "placeholder": "例：ワークショップシステムに ping を送る",
+    "send": "送信",
+    "planHeading": "提案されたプラン",
+    "planEmpty": "まだプランはありません。コマンドを送信すると、提案された操作が表示されます。",
+    "step": "ステップ",
+    "approve": "承認して実行",
+    "reject": "却下",
+    "executed": "実行済み",
+    "reply": "コパイロット",
+    "you": "あなた",
+    "notRecognized": "このマイルストーンでは「ping」のみ実行できます。例：ワークショップシステムに ping を送る。",
+    "resultPong": "Pong ── システムが両言語で応答しました。"
+  },
+  "Approvals": {
+    "tateLabel": "承認",
+    "heading": "承認キュー",
+    "subtitle": "すべての AI 操作は、実行前に台帳へ記録されます。承認が必要な操作はここでお待ちします。",
+    "empty": "承認待ちの操作はありません。",
+    "colTool": "ツール",
+    "colTier": "ティア",
+    "colStatus": "ステータス",
+    "colRequested": "申請日時",
+    "approve": "承認して実行",
+    "reject": "却下",
+    "statusProposed": "承認待ち",
+    "statusExecuted": "実行済み",
+    "statusRejected": "却下済み",
+    "statusFailed": "失敗"
+  },
+  "Tier": {
+    "auto": "自動",
+    "approve": "承認",
+    "owner_only": "オーナー"
+  },
+  "Common": {
+    "loading": "読み込み中…",
+    "error": "エラー"
+  }
+}
