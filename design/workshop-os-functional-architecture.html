@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workshop OS — Functional Architecture</title>
+<style>
+  :root {
+    --ink: #1c2733;
+    --muted: #5c6b7a;
+    --paper: #f7f9fb;
+    --card: #ffffff;
+    --line: #d5dde5;
+    --actor: #eef2f6;
+    --ai: #fff3e6;
+    --ai-border: #e8a24e;
+    --domain: #eaf3ee;
+    --domain-border: #4e8f6b;
+    --data: #eef0fa;
+    --data-border: #5b6bc0;
+    --ext: #f4f4f4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Avenir Next", "Segoe UI", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 40px 24px 64px;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  header { margin-bottom: 28px; }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .layer {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px 20px;
+    margin-bottom: 0;
+  }
+  .layer-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .layer-label .tag {
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 600;
+    font-size: 11px;
+    background: var(--actor);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 10px;
+  }
+  .grid { display: grid; gap: 10px; }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .g5 { grid-template-columns: repeat(5, 1fr); }
+  .box {
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 10px 12px;
+    background: #fff;
+  }
+  .box b { display: block; font-size: 13px; margin-bottom: 3px; }
+  .box span { font-size: 11.5px; color: var(--muted); line-height: 1.45; display: block; }
+  .actors .box { background: var(--actor); }
+  .ai-layer { border-color: var(--ai-border); background: linear-gradient(0deg, #fffdf9, #fffdf9); }
+  .ai-layer .box { background: var(--ai); border-color: #f0cfa4; }
+  .ai-layer .layer-label { color: #a86a1d; }
+  .domain-layer { border-color: var(--domain-border); }
+  .domain-layer .box { background: var(--domain); border-color: #bcd8c8; }
+  .domain-layer .layer-label { color: #33684d; }
+  .data-layer .box { background: var(--data); border-color: #c6cdec; }
+  .data-layer .layer-label { color: #46539b; }
+  .ext-layer .box { background: var(--ext); border-style: dashed; }
+  .conn {
+    display: flex; flex-direction: column; align-items: center;
+    height: 34px; justify-content: center; color: var(--muted);
+  }
+  .conn .stem { width: 2px; flex: 1; background: var(--line); }
+  .conn .head {
+    width: 0; height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid var(--line);
+  }
+  .conn .note {
+    position: absolute; font-size: 10.5px; color: var(--muted);
+    background: var(--paper); padding: 0 8px; transform: translateY(-1px);
+  }
+  .conn-wrap { position: relative; display: flex; justify-content: center; }
+  .legend { margin-top: 26px; display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .legend i {
+    display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+    border: 1px solid var(--line); vertical-align: -1px; margin-right: 6px;
+  }
+  @media (max-width: 860px) {
+    .g4, .g5 { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media print {
+    body { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Workshop OS — Functional Architecture</h1>
+    <p class="sub">AI-first workshop business platform · bilingual English / 日本語 by design · agents and UI share the same internal API</p>
+  </header>
+
+  <!-- ACTORS -->
+  <section class="layer actors">
+    <div class="layer-label">Actors</div>
+    <div class="grid g4">
+      <div class="box"><b>Owner / Staff</b><span>runs the business through the copilot</span></div>
+      <div class="box"><b>Org Admin</b><span>B2B client sending employees</span></div>
+      <div class="box"><b>Participant</b><span>enrolls, learns, gets certified</span></div>
+      <div class="box"><b>Visitor / Prospect</b><span>discovers and books workshops</span></div>
+    </div>
+  </section>
+
+  <div class="conn-wrap"><div class="conn"><div class="stem"></div><div class="head"></div></div></div>
+
+  <!-- EXPERIENCE -->
+  <section class="layer">
+    <div class="layer-label">Experience layer <span class="tag">EN / 日本語 · locale-aware routing</span></div>
+    <div class="grid g4">
+      <div class="box"><b>Admin Copilot Console</b><span>natural-language commands → reviewed actions; dashboards on demand</span></div>
+      <div class="box"><b>Org Portal</b><span>seat purchase &amp; assignment, employee progress, invoices &amp; POs</span></div>
+      <div class="box"><b>Participant Dashboard</b><span>schedule, materials, quizzes, progress, certificates</span></div>
+      <div class="box"><b>Public Catalog &amp; Landing Pages</b><span>generated pages, booking flow, enrollment concierge chat</span></div>
+    </div>
+  </section>
+
+  <div class="conn-wrap"><div class="conn"><div class="stem"></div><div class="head"></div></div></div>
+
+  <!-- AI OPERATING LAYER -->
+  <section class="layer ai-layer">
+    <div class="layer-label">AI operating layer <span class="tag">every action logged · human approval gates</span></div>
+    <div class="grid g5">
+      <div class="box"><b>Agent Orchestrator</b><span>interprets intent, tool-calls domain services, queues approvals</span></div>
+      <div class="box"><b>Localization Engine</b><span>EN ⇄ JA, keigo-aware; author once, publish in both</span></div>
+      <div class="box"><b>Generative Marketing</b><span>landing pages, email sequences, social posts; auto A/B allocation</span></div>
+      <div class="box"><b>Predictive Ops</b><span>no-show &amp; churn risk, demand forecast, sales anomaly alerts</span></div>
+      <div class="box"><b>Narrative Analytics</b><span>plain-language Q&amp;A on data; auto org progress reports</span></div>
+    </div>
+  </section>
+
+  <div class="conn-wrap"><div class="conn"><div class="stem"></div><div class="head"></div></div></div>
+
+  <!-- DOMAIN SERVICES -->
+  <section class="layer domain-layer">
+    <div class="layer-label">Domain services <span class="tag">one internal API — used by UI and agents alike</span></div>
+    <div class="grid g5">
+      <div class="box"><b>Workshop Lifecycle</b><span>create, schedule, capacity, waitlist promotion</span></div>
+      <div class="box"><b>Commerce &amp; Promo</b><span>checkout, promo codes, refunds, tax</span></div>
+      <div class="box"><b>Org &amp; Seats</b><span>multi-tenant orgs, seat pools, PO / invoicing</span></div>
+      <div class="box"><b>Learning &amp; Progress</b><span>attendance, quizzes, skill map, certificates</span></div>
+      <div class="box"><b>Feedback Intelligence</b><span>surveys, theme clustering, sentiment</span></div>
+      <div class="box"><b>Identity &amp; RBAC</b><span>owner · staff · org-admin · participant</span></div>
+      <div class="box"><b>Notifications</b><span>email, reminders, personalized nudges</span></div>
+      <div class="box"><b>Attribution &amp; Funnel</b><span>UTM, referrals, conversion analytics</span></div>
+      <div class="box"><b>Content Library</b><span>materials &amp; media with {en, ja} fields</span></div>
+      <div class="box"><b>AI Action Ledger</b><span>audit trail, inspect &amp; roll back agent acts</span></div>
+    </div>
+  </section>
+
+  <div class="conn-wrap"><div class="conn"><div class="stem"></div><div class="head"></div></div></div>
+
+  <!-- DATA & INFRA -->
+  <section class="layer data-layer">
+    <div class="layer-label">Data &amp; infrastructure</div>
+    <div class="grid g5">
+      <div class="box"><b>Postgres</b><span>multi-tenant, row-level security, bilingual content fields</span></div>
+      <div class="box"><b>pgvector</b><span>semantic search over participants, orgs, feedback</span></div>
+      <div class="box"><b>Job Queue</b><span>campaigns, reminders, report generation</span></div>
+      <div class="box"><b>Object Storage</b><span>materials, certificate PDFs, media</span></div>
+      <div class="box"><b>Observability</b><span>logs, metrics, alerting</span></div>
+    </div>
+  </section>
+
+  <div class="conn-wrap"><div class="conn"><div class="stem"></div><div class="head"></div></div></div>
+
+  <!-- EXTERNAL -->
+  <section class="layer ext-layer">
+    <div class="layer-label">External services</div>
+    <div class="grid g4">
+      <div class="box"><b>Stripe</b><span>cards, konbini, bank transfer (振込) invoicing, JPY/USD, インボイス制度-compliant receipts</span></div>
+      <div class="box"><b>Anthropic API</b><span>agent reasoning, content generation, localization</span></div>
+      <div class="box"><b>Email (Resend)</b><span>transactional + campaign delivery</span></div>
+      <div class="box"><b>Calendar &amp; Video</b><span>ICS invites, Zoom / Google Meet session links</span></div>
+    </div>
+  </section>
+
+  <div class="legend">
+    <span><i style="background:var(--ai)"></i>AI operating layer</span>
+    <span><i style="background:var(--domain)"></i>Domain services</span>
+    <span><i style="background:var(--data)"></i>Data &amp; infra</span>
+    <span><i style="background:var(--ext); border-style:dashed"></i>External (dashed = third party)</span>
+  </div>
+</div>
+</body>
+</html>

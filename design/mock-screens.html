@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workshop OS — Mock Screens v0.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Shippori+Mincho:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F8F8F5; --surface:#FFFFFF; --ink:#20242B; --ink-soft:#6B7076;
+  --ai-600:#165E83; --ai-700:#114A68; --ai-100:#E3EEF3;
+  --shu:#B8432F; --matsu:#3E7A5E; --kin:#A8842C;
+  --line:#E3E2DC; --line-strong:#C9C8C0;
+  --sans:"IBM Plex Sans JP",-apple-system,"Hiragino Sans",sans-serif;
+  --mincho:"Shippori Mincho","Hiragino Mincho ProN",serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --lh:1.7;
+}
+html:lang(ja){ --lh:1.8 }
+html:lang(ja) body{ letter-spacing:.02em }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);font-size:14.5px;line-height:var(--lh)}
+button{font:inherit;cursor:pointer;background:none;border:none;color:inherit}
+.mono{font-family:var(--mono)}
+/* top chrome */
+.chrome{display:flex;align-items:center;gap:24px;padding:14px 28px;border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:20}
+.wordmark{font-family:var(--mincho);font-weight:600;font-size:18px;letter-spacing:.04em}
+.wordmark b{color:var(--ai-600);font-weight:600}
+.tabs{display:flex;gap:4px;flex:1;flex-wrap:wrap}
+.tab{padding:7px 14px;border-radius:6px;color:var(--ink-soft);font-size:13px}
+.tab.on{background:var(--ai-100);color:var(--ai-700);font-weight:500}
+.tab:focus-visible,.btn:focus-visible,.lang button:focus-visible{outline:2px solid var(--ai-600);outline-offset:2px}
+.lang{display:flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;font-size:12.5px}
+.lang button{padding:5px 14px;color:var(--ink-soft)}
+.lang button.on{background:var(--ai-600);color:#fff}
+/* layout + signature tategaki */
+.screen{display:none;max-width:1200px;margin:0 auto;padding:40px 28px 80px}
+.screen.on{display:block}
+.sec{display:grid;grid-template-columns:34px 1fr;gap:16px;margin-bottom:56px;animation:rise .22s ease-out}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.sec{animation:none}}
+.tate{writing-mode:vertical-rl;font-size:11.5px;letter-spacing:.28em;color:var(--ink-soft);border-left:1px solid var(--line-strong);padding-left:10px;height:max-content;min-height:90px}
+.sec-body{border-top:1px solid var(--line-strong);padding-top:18px}
+h1{font-family:var(--mincho);font-weight:600;font-size:30px;line-height:1.4;margin-bottom:6px}
+h2{font-family:var(--mincho);font-weight:600;font-size:20px;margin-bottom:14px}
+.sub{color:var(--ink-soft);font-size:13px;margin-bottom:20px}
+/* components */
+.btn{border-radius:6px;padding:9px 18px;font-size:13.5px;font-weight:500}
+.btn.pri{background:var(--ai-600);color:#fff}
+.btn.pri:hover{background:var(--ai-700)}
+.btn.sec{border:1px solid var(--line-strong)}
+.btn.danger{border:1px solid var(--shu);color:var(--shu)}
+.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:11.5px;font-weight:500}
+.badge.auto{background:var(--ai-100);color:var(--ai-700)}
+.badge.approve{background:#F3ECDC;color:var(--kin)}
+.badge.owner{background:#F5E4E0;color:var(--shu)}
+.badge.ok{background:#E4EEE9;color:var(--matsu)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);text-align:left;font-weight:500;border-bottom:1px solid var(--line-strong);padding:8px 10px}
+html:lang(ja) th{text-transform:none;letter-spacing:.1em}
+td{border-bottom:1px solid var(--line);padding:10px;vertical-align:top}
+td.num{text-align:right;font-family:var(--mono)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+@media(max-width:840px){.grid2,.grid3{grid-template-columns:1fr}.chrome{padding:12px 16px}.screen{padding:24px 16px 60px}}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ai-600)}
+.kpi{font-family:var(--mono);font-size:26px}
+.kpi small{font-family:var(--sans);font-size:12px;color:var(--ink-soft);display:block}
+/* copilot */
+.chat{display:flex;flex-direction:column;gap:14px;margin-bottom:18px}
+.msg{max-width:640px;padding:12px 16px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
+.msg.user{align-self:flex-end;background:var(--ai-100);border-color:transparent}
+.msg.claude{border-left:3px solid var(--ai-600)}
+.msg .who{font-size:11px;letter-spacing:.08em;color:var(--ink-soft);margin-bottom:4px;text-transform:uppercase}
+html:lang(ja) .msg .who{text-transform:none}
+.plan li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);list-style:none;font-size:13.5px}
+.cmd{display:flex;gap:10px;margin-top:16px}
+.cmd input{flex:1;border:1px solid var(--line-strong);border-radius:6px;padding:10px 14px;font:inherit;background:var(--surface)}
+/* catalog */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.card .thumb{height:120px;background:linear-gradient(135deg,var(--ai-100),#fff);display:flex;align-items:flex-end;padding:12px;font-family:var(--mincho);font-size:15px;color:var(--ai-700)}
+.card .body{padding:16px;display:flex;flex-direction:column;gap:8px;flex:1}
+.meta{font-size:12.5px;color:var(--ink-soft)}
+.price{font-family:var(--mono);font-size:16px}
+.skill{display:inline-block;border:1px solid var(--line-strong);border-radius:999px;padding:1px 9px;font-size:11.5px;color:var(--ink-soft);margin:0 4px 4px 0}
+/* checkout */
+.pay{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px}
+.pay label{border:1px solid var(--line-strong);border-radius:6px;padding:9px 14px;font-size:13px;display:flex;gap:8px;align-items:center}
+.pay input{accent-color:var(--ai-600)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:5px}
+.field input{width:100%;border:1px solid var(--line-strong);border-radius:6px;padding:9px 12px;font:inherit;background:var(--surface)}
+.total td{border-bottom:none;font-weight:600}
+.note{font-size:12px;color:var(--ink-soft)}
+footer{border-top:1px solid var(--line);color:var(--ink-soft);font-size:12px;padding:16px 28px;text-align:center}
+/* campaign register (landing pages only) */
+.lp-hero{padding:56px 0 40px;text-align:left}
+.lp-hero .state{font-family:var(--mincho);font-weight:600;font-size:clamp(30px,5vw,44px);line-height:1.5}
+.lp-hero .state em{font-style:normal;color:var(--ai-600)}
+.marker{font-family:var(--mono);font-size:12px;letter-spacing:.24em;color:var(--ai-600);margin-bottom:4px}
+.marker b{font-weight:500;color:var(--ink-soft);letter-spacing:.1em;margin-left:10px}
+.num{font-family:var(--mono);font-size:34px;color:var(--line-strong);line-height:1}
+.quote{border-left:2px solid var(--ai-600);padding:6px 0 6px 16px;margin-bottom:14px}
+.quote p{font-size:14px}
+.quote .who{font-size:11.5px;color:var(--ink-soft);margin-top:4px}
+dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:8px 24px;font-size:13.5px}
+dl.facts dt{color:var(--ink-soft)}
+dl.facts dd{font-family:var(--mono)}
+.flow{display:flex;gap:0;counter-reset:st;margin:8px 0}
+.flow div{flex:1;border-top:2px solid var(--ai-600);padding:12px 14px 0 0;counter-increment:st}
+.flow div::before{content:"0" counter(st);font-family:var(--mono);color:var(--ai-600);display:block;font-size:13px;margin-bottom:4px}
+.cta-band{background:var(--ai-600);color:#fff;border-radius:10px;padding:22px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.cta-band .btn{background:#fff;color:var(--ai-700)}
+</style>
+</head>
+<body>
+
+<header class="chrome">
+  <div class="wordmark">Workshop<b>OS</b><span style="color:var(--ai-600);font-size:12px;margin-left:6px">藍</span></div>
+  <nav class="tabs" id="tabs"></nav>
+  <div class="lang">
+    <button id="btn-en" class="on" onclick="setLang('en')">EN</button>
+    <button id="btn-ja" onclick="setLang('ja')">日本語</button>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<footer id="foot"></footer>
+
+<script>
+/* ---------- SAMPLE DATA — mirrors DATA_MODEL.md shapes ---------- */
+const DATA = {
+  facilitator: { en:"Rajkumar Rajagobalan", ja:"ラジクマール・ラジャゴバラン" },
+  testimonials: [
+    { q:{en:"I walked out with a decision framework we used in a real product meeting the next week.",ja:"翌週の実際の製品会議でそのまま使える意思決定フレームワークが身につきました。"}, who:{en:"Product manager, SaaS company",ja:"SaaS企業 プロダクトマネージャー"} },
+    { q:{en:"The smallest, most hands-on workshop I've attended. No lectures — we built things.",ja:"これまで参加した中で最も少人数で実践的。講義ではなく、実際に手を動かしました。"}, who:{en:"Design lead, manufacturing",ja:"製造業 デザインリード"} },
+    { q:{en:"Rajkumar adapts on the fly to what the room actually needs.",ja:"ラジクマール先生はその場の受講者に合わせて内容を柔軟に調整してくれます。"}, who:{en:"HR development manager",ja:"人材開発マネージャー"} }
+  ],
+  workshops: [
+    { id:"w1", slug:"design-thinking",
+      title:{en:"Design Thinking in Practice",ja:"実践デザイン思考"},
+      summary:{en:"Three sessions turning user research into shipped decisions.",ja:"ユーザーリサーチを意思決定につなげる全3回のワークショップ。"},
+      level:{en:"Intermediate",ja:"中級"}, skills:[{en:"User research",ja:"ユーザーリサーチ"},{en:"Facilitation",ja:"ファシリテーション"},{en:"Prototyping",ja:"プロトタイピング"}],
+      cohort:{ starts:"2026-09-08", sessions:3, capacity:30, enrolled:22, price_jpy:45000, price_usd:310, format:{en:"Online (Zoom)",ja:"オンライン（Zoom）"} } },
+    { id:"w2", slug:"ai-literacy",
+      title:{en:"AI Literacy for Business Teams",ja:"ビジネスチームのためのAIリテラシー"},
+      summary:{en:"Hands-on fluency with AI tools, risks, and workflows.",ja:"AIツール・リスク・業務活用を実践的に学ぶ。"},
+      level:{en:"Intro",ja:"入門"}, skills:[{en:"Prompting",ja:"プロンプト設計"},{en:"AI risk",ja:"AIリスク"},{en:"Automation",ja:"業務自動化"}],
+      cohort:{ starts:"2026-08-18", sessions:2, capacity:40, enrolled:37, price_jpy:32000, price_usd:220, format:{en:"Online (Zoom)",ja:"オンライン（Zoom）"} } },
+    { id:"w3", slug:"facilitation-mastery",
+      title:{en:"Facilitation Mastery",ja:"ファシリテーション実践講座"},
+      summary:{en:"Run meetings and workshops people actually thank you for.",ja:"参加者に感謝される会議・ワークショップの進め方。"},
+      level:{en:"Advanced",ja:"上級"}, skills:[{en:"Facilitation",ja:"ファシリテーション"},{en:"Group dynamics",ja:"グループダイナミクス"}],
+      cohort:{ starts:"2026-10-02", sessions:4, capacity:20, enrolled:8, price_jpy:68000, price_usd:470, format:{en:"In person · Tokyo",ja:"対面・東京"} } }
+  ],
+  copilot: {
+    command:{en:"Launch a 3-session Design Thinking cohort in September, ¥45,000, cap 30, early-bird 20% off until Aug 15.",
+             ja:"9月開講のデザイン思考コホート（全3回・45,000円・定員30名）を作成し、8月15日まで20%早割を設定して。"},
+    reply:{en:"Here's the plan — two steps run automatically, three need your approval before anything goes live.",
+           ja:"実行プランです。2件は自動実行、3件は公開前に承認が必要です。"},
+    plan: [
+      { text:{en:"Create cohort · Sep 8–22 · 3 sessions · cap 30 · ¥45,000",ja:"コホート作成 · 9/8–22 · 全3回 · 定員30 · ¥45,000"}, tier:"approve" },
+      { text:{en:"Generate landing page variants A/B (EN + JA)",ja:"ランディングページA/B案を生成（英・日）"}, tier:"auto" },
+      { text:{en:"Create promo code HAYAWARI20 · −20% · until Aug 15",ja:"早割コード HAYAWARI20 · −20% · 8/15まで"}, tier:"approve" },
+      { text:{en:"Draft 3-email announcement sequence (keigo-reviewed JA)",ja:"告知メール3通を下書き（敬語チェック済み日本語）"}, tier:"auto" },
+      { text:{en:"Schedule campaign send on approval",ja:"承認後にメール配信を予約"}, tier:"approve" }
+    ],
+    queue: [
+      { item:{en:"Refund request — Sato ¥45,000 (medical)",ja:"返金申請 — 佐藤様 ¥45,000（体調不良）"}, tier:"owner", when:{en:"2h ago",ja:"2時間前"} },
+      { item:{en:"Publish JA landing page — AI Literacy",ja:"日本語LP公開 — AIリテラシー"}, tier:"approve", when:{en:"5h ago",ja:"5時間前"} },
+      { item:{en:"Promo suggestion: LASTSEATS10 for Facilitation Mastery",ja:"割引提案：ファシリテーション講座に LASTSEATS10"}, tier:"approve", when:{en:"Yesterday",ja:"昨日"} }
+    ],
+    ledger: [
+      { act:{en:"Promoted 2 from waitlist — AI Literacy",ja:"キャンセル待ちから2名繰上げ — AIリテラシー"}, tier:"auto", id:"act_9f21" },
+      { act:{en:"Localized session agendas to JA",ja:"セッション議題を日本語化"}, tier:"auto", id:"act_9f1c" },
+      { act:{en:"Sent 37 reminder emails (T-3 days)",ja:"リマインダー37通送信（3日前）"}, tier:"auto", id:"act_9f0a" }
+    ]
+  },
+  org: {
+    name:{en:"Nuvear K.K.",ja:"ヌヴィア株式会社"},
+    pool:{ total:20, used:13, valid:"2027-03-31" },
+    employees: [
+      { name:{en:"Aiko Tanaka",ja:"田中 愛子"}, ws:"w1", attend:100, quiz:88, done:true },
+      { name:{en:"Kenji Mori",ja:"森 健二"}, ws:"w1", attend:67, quiz:null, done:false },
+      { name:{en:"Yuki Sato",ja:"佐藤 由紀"}, ws:"w2", attend:100, quiz:92, done:true },
+      { name:{en:"Leo Yamada",ja:"山田 玲央"}, ws:"w2", attend:50, quiz:null, done:false }
+    ],
+    invoices: [
+      { no:"INV-2026-0041", amt:640000, due:"2026-07-31", status:"issued" },
+      { no:"INV-2026-0027", amt:320000, due:"2026-05-31", status:"paid" }
+    ]
+  },
+  participant: {
+    name:{en:"Aiko Tanaka",ja:"田中 愛子"}, ws:"w1",
+    sessions: [
+      { t:{en:"Session 1 · Framing the problem",ja:"第1回 · 課題の捉え方"}, date:"2026-09-08", st:"present" },
+      { t:{en:"Session 2 · Research to insight",ja:"第2回 · リサーチから洞察へ"}, date:"2026-09-15", st:"present" },
+      { t:{en:"Session 3 · Prototype & decide",ja:"第3回 · 試作と意思決定"}, date:"2026-09-22", st:"upcoming" }
+    ],
+    quiz:{ score:88, pass:70 }, cert:"CERT-7K2M-Q8"
+  },
+  checkout: {
+    promo:{ code:"HAYAWARI20", pct:20 }
+  }
+};
+
+/* ---------- UI STRINGS ---------- */
+const S = {
+  tabs: { copilot:{en:"Copilot Console",ja:"コパイロット"}, catalog:{en:"Catalog",ja:"カタログ"}, landing:{en:"Landing Page",ja:"講座LP"}, checkout:{en:"Checkout",ja:"お申し込み"}, org:{en:"Org Portal",ja:"法人ポータル"}, me:{en:"Participant",ja:"受講者"} },
+  tiers:{ auto:{en:"auto",ja:"自動"}, approve:{en:"approve",ja:"要承認"}, owner:{en:"owner",ja:"オーナー"} },
+  approve:{en:"Approve",ja:"承認"}, reject:{en:"Reject",ja:"却下"}, review:{en:"Review",ja:"確認"},
+  seats:{en:"seats left",ja:"残席"}, enroll:{en:"View & enroll",ja:"詳細・申し込み"},
+  foot:{en:"WorkshopOS by Rajkumar Rajagobalan · mock screens v0.1 · sample data only — nothing here is functional",ja:"WorkshopOS by ラジクマール・ラジャゴバラン · モック画面 v0.1 · サンプルデータ表示のみ（機能は未実装）"}
+};
+const T = (o)=>o[LANG];
+const yen = n=>"¥"+n.toLocaleString("ja-JP");
+let LANG="en", SCREEN="copilot";
+
+/* ---------- RENDER ---------- */
+function badge(t){return `<span class="badge ${t}">${T(S.tiers[t])}</span>`}
+function tate(en,ja){return `<div class="tate">${LANG==="ja"?ja:en}</div>`}
+
+function screenCopilot(){
+  const c=DATA.copilot;
+  return `<section class="screen on">
+  <div class="sec">${tate("COPILOT","操作室")}
+    <div class="sec-body">
+      <h1>${LANG==="ja"?"おかえりなさい、ラジクマールさん。承認待ちが3件あります。":"Welcome back, Rajkumar. Three items await your approval."}</h1>
+      <p class="sub">${LANG==="ja"?"今週の売上 ¥1,240,000 · 新規申込 14件 · 稼働中コホート 2件":"This week: ¥1,240,000 sales · 14 new enrollments · 2 cohorts running"}</p>
+      <div class="chat">
+        <div class="msg user"><div class="who">${LANG==="ja"?"あなた":"You"}</div>${T(c.command)}</div>
+        <div class="msg claude"><div class="who">${LANG==="ja"?"コパイロット（AI）":"Copilot (AI)"}</div>${T(c.reply)}
+          <ul class="plan">${c.plan.map(p=>`<li><span>${T(p.text)}</span>${badge(p.tier)}</li>`).join("")}</ul>
+          <div style="margin-top:12px;display:flex;gap:8px"><button class="btn pri">${LANG==="ja"?"プランを承認して実行":"Approve plan & run"}</button><button class="btn sec">${LANG==="ja"?"編集":"Edit"}</button></div>
+        </div>
+      </div>
+      <div class="cmd"><input placeholder="${LANG==="ja"?"次の指示を入力…（例：10月の再開講を作成して）":"Type a command… e.g. clone this cohort for October"}"><button class="btn pri">${LANG==="ja"?"送信":"Send"}</button></div>
+    </div>
+  </div>
+  <div class="sec">${tate("APPROVALS","承認待ち")}
+    <div class="sec-body grid2">
+      <div class="panel"><h2>${LANG==="ja"?"承認キュー":"Approval queue"}</h2>
+        <table><tbody>${c.queue.map(q=>`<tr><td>${T(q.item)}<div class="note">${T(q.when)}</div></td><td>${badge(q.tier)}</td><td style="white-space:nowrap"><button class="btn sec">${T(S.review)}</button></td></tr>`).join("")}</tbody></table>
+      </div>
+      <div class="panel"><h2>${LANG==="ja"?"AIアクション台帳（最近）":"AI action ledger (recent)"}</h2>
+        <table><tbody>${c.ledger.map(l=>`<tr><td>${T(l.act)}<div class="note mono">${l.id}</div></td><td>${badge(l.tier)}</td></tr>`).join("")}</tbody></table>
+      </div>
+    </div>
+  </div></section>`;
+}
+
+function screenCatalog(){
+  return `<section class="screen on">
+  <div class="sec">${tate("CATALOG","講座一覧")}
+    <div class="sec-body">
+      <h1>${LANG==="ja"?"手を動かして学ぶ、少人数ワークショップ。":"Small workshops where you learn by doing."}</h1>
+      <p class="sub">${LANG==="ja"?`全講座、${T(DATA.facilitator)}が直接指導します。英語・日本語で開講、法人プランもご用意。`:`Every workshop taught personally by ${T(DATA.facilitator)}. Offered in English and Japanese; organization seat plans available.`}</p>
+      <div class="grid3">
+      ${DATA.workshops.map(w=>{
+        const left=w.cohort.capacity-w.cohort.enrolled;
+        return `<article class="card">
+          <div class="thumb">${T(w.title)}</div>
+          <div class="body">
+            <div class="meta">${T(w.level)} · ${w.cohort.sessions}${LANG==="ja"?"回":" sessions"} · ${T(w.cohort.format)}</div>
+            <div class="meta" style="color:var(--ai-700)">${LANG==="ja"?"講師：":"Led by "}${T(DATA.facilitator)}</div>
+            <p>${T(w.summary)}</p>
+            <div>${w.skills.map(s=>`<span class="skill">${T(s)}</span>`).join("")}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto">
+              <span class="price">${LANG==="ja"?yen(w.cohort.price_jpy):"$"+w.cohort.price_usd.toFixed(2)}</span>
+              <span class="meta">${left} ${T(S.seats)}</span>
+            </div>
+            <button class="btn pri">${T(S.enroll)}</button>
+          </div></article>`;}).join("")}
+      </div>
+    </div>
+  </div></section>`;
+}
+
+function screenCheckout(){
+  const w=DATA.workshops[0], p=DATA.checkout.promo;
+  const sub=w.cohort.price_jpy, disc=Math.round(sub*p.pct/100), tax=Math.round((sub-disc)*0.10), total=sub-disc+tax;
+  return `<section class="screen on" style="max-width:920px">
+  <div class="sec">${tate("CHECKOUT","お申し込み")}
+    <div class="sec-body grid2">
+      <div>
+        <h1 style="font-size:24px">${T(w.title)}</h1>
+        <p class="sub">${LANG==="ja"?"2026年9月8日開講 · 全3回 · オンライン":"Starts Sep 8, 2026 · 3 sessions · Online"}</p>
+        <div class="field"><label>${LANG==="ja"?"お名前":"Full name"}</label><input value="${LANG==="ja"?"田中 愛子":"Aiko Tanaka"}"></div>
+        <div class="field"><label>${LANG==="ja"?"メールアドレス":"Email"}</label><input value="aiko@example.co.jp"></div>
+        <div class="field"><label>${LANG==="ja"?"お支払い方法":"Payment method"}</label>
+          <div class="pay">
+            <label><input type="radio" name="pm" checked>${LANG==="ja"?"クレジットカード":"Card"}</label>
+            <label><input type="radio" name="pm">${LANG==="ja"?"コンビニ払い":"Konbini"}</label>
+            <label><input type="radio" name="pm">${LANG==="ja"?"請求書・銀行振込（法人）":"Invoice / bank transfer (orgs)"}</label>
+          </div>
+          <p class="note">${LANG==="ja"?"カード情報はStripeの決済画面で入力します。当社サーバーには保存されません。":"Card details are entered on Stripe's secure page — they never touch our servers."}</p>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>${LANG==="ja"?"ご注文内容":"Order summary"}</h2>
+        <table>
+          <tr><td>${T(w.title)}</td><td class="num">${yen(sub)}</td></tr>
+          <tr><td>${LANG==="ja"?"早割":"Early bird"} <span class="mono">${p.code}</span> −${p.pct}%</td><td class="num" style="color:var(--matsu)">−${yen(disc)}</td></tr>
+          <tr><td>${LANG==="ja"?"消費税（10%）":"Consumption tax (10%)"}</td><td class="num">${yen(tax)}</td></tr>
+          <tr class="total"><td>${LANG==="ja"?"合計":"Total"}</td><td class="num">${yen(total)}</td></tr>
+        </table>
+        <button class="btn pri" style="width:100%;margin-top:14px">${LANG==="ja"?"支払いに進む":"Continue to payment"}</button>
+        <p class="note" style="margin-top:10px">${LANG==="ja"?"開講7日前まで全額返金。適格請求書を発行します。":"Full refund up to 7 days before start. Qualified invoices (適格請求書) issued."}</p>
+      </div>
+    </div>
+  </div></section>`;
+}
+
+function screenOrg(){
+  const o=DATA.org, pool=o.pool, pct=Math.round(pool.used/pool.total*100);
+  return `<section class="screen on">
+  <div class="sec">${tate("ORG PORTAL","法人ポータル")}
+    <div class="sec-body">
+      <h1>${T(o.name)}</h1>
+      <p class="sub">${LANG==="ja"?"シートプール · 有効期限 2027年3月31日":"Seat pool · valid through Mar 31, 2027"}</p>
+      <div class="grid3">
+        <div class="panel"><div class="kpi">${pool.used} / ${pool.total}<small>${LANG==="ja"?"利用済みシート":"seats used"}</small></div><div class="bar" style="margin-top:10px"><i style="width:${pct}%"></i></div></div>
+        <div class="panel"><div class="kpi">2<small>${LANG==="ja"?"修了者":"completions"}</small></div></div>
+        <div class="panel"><div class="kpi">90%<small>${LANG==="ja"?"平均クイズ得点（修了者）":"avg quiz score (completed)"}</small></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="sec">${tate("PROGRESS","進捗")}
+    <div class="sec-body panel">
+      <h2>${LANG==="ja"?"従業員の進捗":"Employee progress"}</h2>
+      <table>
+        <tr><th>${LANG==="ja"?"氏名":"Name"}</th><th>${LANG==="ja"?"講座":"Workshop"}</th><th>${LANG==="ja"?"出席率":"Attendance"}</th><th>${LANG==="ja"?"クイズ":"Quiz"}</th><th>${LANG==="ja"?"状況":"Status"}</th></tr>
+        ${o.employees.map(e=>{
+          const w=DATA.workshops.find(x=>x.id===e.ws);
+          return `<tr><td>${T(e.name)}</td><td>${T(w.title)}</td>
+          <td style="min-width:130px"><div class="bar"><i style="width:${e.attend}%"></i></div><span class="note mono">${e.attend}%</span></td>
+          <td class="mono">${e.quiz??"—"}</td>
+          <td>${e.done?`<span class="badge ok">${LANG==="ja"?"修了":"Completed"}</span>`:`<span class="badge approve">${LANG==="ja"?"受講中":"In progress"}</span>`}</td></tr>`;}).join("")}
+      </table>
+      <p class="note" style="margin-top:10px">${LANG==="ja"?"月次レポート（AI作成・日本語）を毎月1日にメールでお送りします。":"An AI-written monthly progress report is emailed on the 1st, in your preferred language."}</p>
+    </div>
+  </div>
+  <div class="sec">${tate("BILLING","ご請求")}
+    <div class="sec-body panel">
+      <h2>${LANG==="ja"?"請求書":"Invoices"}</h2>
+      <table>
+        <tr><th>No.</th><th>${LANG==="ja"?"金額（税込）":"Amount (tax incl.)"}</th><th>${LANG==="ja"?"支払期限":"Due"}</th><th>${LANG==="ja"?"状況":"Status"}</th><th></th></tr>
+        ${o.invoices.map(i=>`<tr><td class="mono">${i.no}</td><td class="num">${yen(i.amt)}</td><td class="mono">${i.due}</td>
+          <td>${i.status==="paid"?`<span class="badge ok">${LANG==="ja"?"入金済":"Paid"}</span>`:`<span class="badge approve">${LANG==="ja"?"発行済":"Issued"}</span>`}</td>
+          <td><button class="btn sec">PDF</button></td></tr>`).join("")}
+      </table>
+    </div>
+  </div></section>`;
+}
+
+function screenMe(){
+  const m=DATA.participant, w=DATA.workshops.find(x=>x.id===m.ws);
+  const done=m.sessions.filter(s=>s.st==="present").length, pct=Math.round(done/m.sessions.length*100);
+  return `<section class="screen on" style="max-width:920px">
+  <div class="sec">${tate("MY LEARNING","学習状況")}
+    <div class="sec-body">
+      <h1>${LANG==="ja"?`こんにちは、${T(m.name)}さん`:`Hello, ${T(m.name)}`}</h1>
+      <p class="sub">${T(w.title)} · ${LANG==="ja"?"受講中":"in progress"}</p>
+      <div class="grid3">
+        <div class="panel"><div class="kpi">${pct}%<small>${LANG==="ja"?"出席率":"attendance"}</small></div><div class="bar" style="margin-top:10px"><i style="width:${pct}%"></i></div></div>
+        <div class="panel"><div class="kpi">${m.quiz.score}<small>${LANG==="ja"?`クイズ得点（合格 ${m.quiz.pass} 以上）`:`quiz score (pass ≥ ${m.quiz.pass})`}</small></div></div>
+        <div class="panel"><div class="kpi" style="font-size:15px">${m.cert}<small>${LANG==="ja"?`修了証（第3回終了後に発行）· ${T(DATA.facilitator)} 署名入り`:`certificate (issued after session 3) · signed by ${T(DATA.facilitator)}`}</small></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="sec">${tate("SESSIONS","セッション")}
+    <div class="sec-body panel">
+      <h2>${LANG==="ja"?"セッション一覧":"Sessions"}</h2>
+      <table>${m.sessions.map(s=>`<tr><td>${T(s.t)}</td><td class="mono">${s.date}</td>
+        <td>${s.st==="present"?`<span class="badge ok">${LANG==="ja"?"出席":"Attended"}</span>`:`<span class="badge auto">${LANG==="ja"?"予定":"Upcoming"}</span>`}</td></tr>`).join("")}</table>
+      <p class="note" style="margin-top:10px">${LANG==="ja"?"第3回の事前課題が公開されています。所要時間は約20分です。":"Pre-work for session 3 is available — it takes about 20 minutes."}</p>
+      <div style="margin-top:10px"><button class="btn pri">${LANG==="ja"?"事前課題を始める":"Start pre-work"}</button></div>
+    </div>
+  </div></section>`;
+}
+
+function screenLanding(){
+  const w=DATA.workshops[0], left=w.cohort.capacity-w.cohort.enrolled;
+  const cta=`<div class="cta-band"><div><strong style="font-family:var(--mincho);font-size:17px">${T(w.title)}</strong><div style="font-size:12.5px;opacity:.85">${LANG==="ja"?`残席 ${left} · 早割は8月15日まで`:`${left} seats left · early bird ends Aug 15`}</div></div><button class="btn">${LANG==="ja"?"申し込む":"Enroll now"}</button></div>`;
+  return `<section class="screen on" style="max-width:880px">
+  <div class="sec">${tate("LANDING","講座案内")}
+    <div class="sec-body">
+      <div class="lp-hero">
+        <div class="marker">WORKSHOP<b>${LANG==="ja"?"ワークショップ":""}</b></div>
+        <div class="state">${LANG==="ja"?`考えるだけの研修は、<br>もう終わり。<em>手を動かす</em>3日間。`:`Stop workshopping ideas.<br>Start <em>shipping decisions</em>.`}</div>
+        <p class="sub" style="margin-top:14px">${LANG==="ja"?`${T(w.title)} · ${T(DATA.facilitator)}が直接指導`:`${T(w.title)} · taught personally by ${T(DATA.facilitator)}`}</p>
+      </div>
+      ${cta}
+    </div>
+  </div>
+  <div class="sec">${tate("OUTLINE","概要")}
+    <div class="sec-body">
+      <div class="marker">OUTLINE<b>${LANG==="ja"?"この講座で得られる3つのこと":"Three things you leave with"}</b></div>
+      <div class="grid3" style="margin-top:14px">
+        ${[{en:"A decision framework you can run the day after",ja:"翌日から使える意思決定フレームワーク"},{en:"Research skills practiced on a real problem",ja:"実際の課題で練習するリサーチスキル"},{en:"A prototype your team can react to",ja:"チームに見せられるプロトタイプ"}].map((o,i)=>`<div class="panel"><div class="num">0${i+1}</div><p style="margin-top:8px">${T(o)}</p></div>`).join("")}
+      </div>
+    </div>
+  </div>
+  <div class="sec">${tate("VOICES","受講者の声")}
+    <div class="sec-body">
+      <div class="marker">VOICES<b>${LANG==="ja"?"受講者の声":"From past participants"}</b></div>
+      <div style="margin-top:14px">${DATA.testimonials.map(t=>`<div class="quote"><p>${T(t.q)}</p><div class="who">${T(t.who)}</div></div>`).join("")}</div>
+    </div>
+  </div>
+  <div class="sec">${tate("DETAILS","開催要項")}
+    <div class="sec-body grid2">
+      <div class="panel">
+        <div class="marker">DETAILS<b>${LANG==="ja"?"開催要項":"Program facts"}</b></div>
+        <dl class="facts" style="margin-top:12px">
+          <dt>${LANG==="ja"?"日程":"Dates"}</dt><dd>2026-09-08 / 09-15 / 09-22</dd>
+          <dt>${LANG==="ja"?"形式":"Format"}</dt><dd>${T(w.cohort.format)}</dd>
+          <dt>${LANG==="ja"?"定員":"Capacity"}</dt><dd>${w.cohort.capacity}${LANG==="ja"?"名":""}</dd>
+          <dt>${LANG==="ja"?"受講料":"Price"}</dt><dd>${LANG==="ja"?yen(w.cohort.price_jpy)+"（税別）":"$"+w.cohort.price_usd.toFixed(2)}</dd>
+          <dt>${LANG==="ja"?"言語":"Language"}</dt><dd>${LANG==="ja"?"日本語・英語":"English · Japanese"}</dd>
+        </dl>
+      </div>
+      <div>
+        <div class="marker">FLOW<b>${LANG==="ja"?"お申し込みの流れ":"How enrollment works"}</b></div>
+        <div class="flow">
+          <div>${LANG==="ja"?"お申し込み（3分）":"Enroll (3 min)"}</div>
+          <div>${LANG==="ja"?"事前課題（20分）":"Pre-work (20 min)"}</div>
+          <div>${LANG==="ja"?"第1回セッションへ":"Join session 1"}</div>
+        </div>
+        <p class="note">${LANG==="ja"?"開講7日前まで全額返金。法人でのお申し込みは請求書払いに対応しています。":"Full refund up to 7 days before start. Organizations can pay by invoice."}</p>
+      </div>
+    </div>
+  </div>
+  <div class="sec">${tate("ENTRY","お申し込み")}
+    <div class="sec-body">${cta}</div>
+  </div></section>`;
+}
+
+const SCREENS={copilot:screenCopilot,catalog:screenCatalog,landing:screenLanding,checkout:screenCheckout,org:screenOrg,me:screenMe};
+
+function render(){
+  document.documentElement.lang=LANG;
+  document.getElementById("btn-en").classList.toggle("on",LANG==="en");
+  document.getElementById("btn-ja").classList.toggle("on",LANG==="ja");
+  document.getElementById("tabs").innerHTML=Object.keys(SCREENS).map(k=>
+    `<button class="tab ${k===SCREEN?"on":""}" onclick="go('${k}')">${T(S.tabs[k])}</button>`).join("");
+  document.getElementById("app").innerHTML=SCREENS[SCREEN]();
+  document.getElementById("foot").textContent=T(S.foot);
+}
+function go(k){SCREEN=k;render()}
+function setLang(l){LANG=l;render()}
+render();
+</script>
+</body>
+</html>
