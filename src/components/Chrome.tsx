@@ -4,7 +4,7 @@ import { getSession } from '@/server/auth/session';
 import { STAFF_ROLES } from '@/server/auth/rbac';
 import { LocaleSwitcher } from './LocaleSwitcher';
 
-type Tab = 'home' | 'catalog' | 'copilot' | 'approvals' | 'admin';
+type Tab = 'home' | 'catalog' | 'copilot' | 'approvals' | 'admin' | 'org';
 
 // Top chrome: wordmark (§2 "OS" in accent), tabs, locale switcher, sign in/out.
 // Staff-only tabs appear only for owner/staff sessions.
@@ -13,6 +13,7 @@ export async function Chrome({ locale, active }: { locale: string; active: Tab }
   const tAuth = await getTranslations('Auth');
   const session = await getSession();
   const isStaff = session ? STAFF_ROLES.includes(session.role) : false;
+  const isOrgAdmin = session?.role === 'org_admin' && !!session.organizationId;
 
   return (
     <header className="chrome">
@@ -38,6 +39,15 @@ export async function Chrome({ locale, active }: { locale: string; active: Tab }
               {t('approvals')}
             </Link>
           </>
+        )}
+        {isOrgAdmin && (
+          <Link
+            href={`/org/${session.organizationId}`}
+            className={`tab ${active === 'org' ? 'on' : ''}`}
+            data-testid="org-tab"
+          >
+            {t('org')}
+          </Link>
         )}
       </nav>
       <LocaleSwitcher current={locale} />

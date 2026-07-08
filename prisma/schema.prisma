@@ -227,6 +227,7 @@ model User {
   orders         Order[]
   refundsApproved Refund[]
   enrollments    Enrollment[]
+  feedback       Feedback[]
 
   @@index([organizationId])
   @@map("user")
@@ -348,6 +349,7 @@ model Cohort {
   waitlist    WaitlistEntry[]
   orderItems  OrderItem[]
   enrollments Enrollment[]
+  feedback    Feedback[]
 
   @@index([workshopId])
   @@index([status])
@@ -621,4 +623,33 @@ model Enrollment {
   @@index([cohortId])
   @@index([seatPoolId])
   @@map("enrollment")
+}
+
+// Post-cohort reflections (DATA_MODEL §5). ratings are aggregatable; text_body is
+// the free-text reflection that the M3 privacy boundary (PRODUCT_SPEC §2) must
+// exclude from org-admin views. That boundary is COLUMN-level (org admins may see
+// aggregate ratings but never text_body), which RLS cannot express, so feedback
+// carries NO row-level security — like payment/promo_code in M2 — and the
+// exclusion is enforced in the query/service layer (a dedicated org-progress read
+// that never selects text_body). Owner/staff and server code read it directly.
+model Feedback {
+  id          String   @id @default(uuid()) @db.Uuid
+  cohortId    String   @map("cohort_id") @db.Uuid
+  // nullable: anonymous feedback is allowed
+  userId      String?  @map("user_id") @db.Uuid
+  // e.g. { overall: 5, pace: 4 }
+  ratings     Json     @default("{}")
+  // FREE-TEXT REFLECTION — never selected into org-admin views (M3)
+  textBody    String?  @map("text_body")
+  language    Locale
+  aiTheme     String?  @map("ai_theme")
+  aiSentiment Decimal? @db.Decimal(4, 3) @map("ai_sentiment")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([cohortId])
+  @@map("feedback")
 }

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { requireRole, STAFF_ROLES } from '@/server/auth/rbac';
+import { requireSession, STAFF_ROLES, AuthError } from '@/server/auth/rbac';
+import type { Role } from '@/generated/prisma';
 import { getTool } from '@/server/ai/registry';
 import { proposeAction, proposeAndAutoExecute, effectiveTier } from '@/server/ai/ledger';
 import { toErrorResponse } from '@/server/http';
@@ -11,6 +12,11 @@ const body = z.object({
   idempotencyKey: z.string().uuid().optional(),
 });
 
+// Copilot tools are staff-only, except this allowlist of org-scoped tools an
+// org_admin may drive from the org portal. RLS still confines them to their own
+// org (e.g. org.assign_seats can only resolve a seat pool in the caller's org).
+const ORG_ADMIN_TOOLS = new Set<string>(['org.assign_seats']);
+
 /**
  * The single internal entry point for invoking a copilot tool from the UI. Auto-
  * tier tools execute immediately and return their output; approve/owner-tier
@@ -19,13 +25,22 @@ const body = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireRole(...STAFF_ROLES);
+    const session = await requireSession();
     const parsed = body.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: 'toolName and input are required' }, { status: 400 });
     }
 
     const def = getTool(parsed.data.toolName); // throws unknown_tool → 404
+
+    // Role gate depends on the tool: staff by default, org_admin for the allowlist.
+    const allowedRoles: Role[] = ORG_ADMIN_TOOLS.has(def.name)
+      ? [...STAFF_ROLES, 'org_admin' as Role]
+      : STAFF_ROLES;
+    if (!allowedRoles.includes(session.role)) {
+      throw new AuthError(403, `Requires role: ${allowedRoles.join(' | ')}`);
+    }
+
     const args = {
       surface: 'copilot' as const,
       toolName: def.name,

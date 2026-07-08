@@ -24,15 +24,17 @@ export default defineConfig({
     timeout: 180_000,
     stdout: 'pipe',
     stderr: 'pipe',
-    // Force the mock payment provider in e2e/CI — never hit live Airwallex.
-    // Empty values stay empty: Next's .env loader won't override an existing
-    // process.env var, so getPaymentProvider() sees no key → mock.
-    // APP_URL must match the e2e port so redirect/checkout URLs resolve here.
+    // Keep e2e fully offline + deterministic: force the mock payment provider and
+    // the stub localization/mail paths (no live Airwallex/Anthropic/Resend calls).
+    // Empty values stay empty — Next's .env loader won't override an existing
+    // process.env var. APP_URL must match the e2e port so redirect URLs resolve here.
     env: {
       ...process.env,
       APP_URL: BASE_URL,
       AIRWALLEX_API_KEY: '',
       AIRWALLEX_CLIENT_ID: '',
+      ANTHROPIC_API_KEY: '',
+      RESEND_API_KEY: '',
     },
   },
 });

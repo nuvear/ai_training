@@ -17,6 +17,10 @@ import { refundExecute } from './tools/refunds';
 import { pricingChange } from './tools/pricing';
 import { promoSuggest, promoCreate, promoDeactivate } from './tools/promos';
 import { seatpoolCreateOffer } from './tools/seatpools';
+// M3 — organizations, participants & reports (COPILOT_TOOLS §5–§6)
+import { orgCreate, orgAssignSeats } from './tools/orgs';
+import { participantEnroll } from './tools/participants';
+import { reportOrgProgress } from './tools/reports';
 
 // The server-side tool registry: name → definition. This is the authority for
 // which tools exist, their tier, and which surfaces may call them. Agents and
@@ -54,6 +58,11 @@ register(promoSuggest);
 register(promoCreate);
 register(promoDeactivate);
 register(seatpoolCreateOffer);
+// M3 — organizations, participants & reports (COPILOT_TOOLS §5–§6)
+register(orgCreate);
+register(orgAssignSeats);
+register(participantEnroll);
+register(reportOrgProgress);
 
 export class ToolError extends Error {
   constructor(
