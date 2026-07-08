@@ -35,6 +35,17 @@ import {
   faqAnswer,
   handoffToHuman,
 } from './tools/concierge';
+// M5 — generative marketing (COPILOT_TOOLS §3)
+import { landingGenerateVariants, landingPublish, landingReallocateTraffic } from './tools/landing';
+import {
+  campaignDraftSequence,
+  campaignApproveAndSchedule,
+  socialDraftPosts,
+} from './tools/campaigns';
+// M5 — narrative analytics & predictive ops (COPILOT_TOOLS §6)
+import { analyticsQuery, analyticsExplainChange } from './tools/analytics';
+import { feedbackCluster } from './tools/feedback';
+import { predictNoShows, predictDemand } from './tools/predict';
 
 // The server-side tool registry: name → definition. This is the authority for
 // which tools exist, their tier, and which surfaces may call them. Agents and
@@ -91,6 +102,19 @@ register(enrollmentBeginCheckout);
 register(promoValidate);
 register(faqAnswer);
 register(handoffToHuman);
+// M5 — generative marketing (COPILOT_TOOLS §3)
+register(landingGenerateVariants);
+register(landingPublish);
+register(landingReallocateTraffic);
+register(campaignDraftSequence);
+register(campaignApproveAndSchedule);
+register(socialDraftPosts);
+// M5 — narrative analytics & predictive ops (COPILOT_TOOLS §6)
+register(analyticsQuery);
+register(analyticsExplainChange);
+register(feedbackCluster);
+register(predictNoShows);
+register(predictDemand);
 
 export class ToolError extends Error {
   constructor(

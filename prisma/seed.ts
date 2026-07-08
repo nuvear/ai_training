@@ -115,6 +115,60 @@ async function main() {
     `Imported ${result.imported} workshops (${result.published} published) from content/ideage.`,
   );
 
+  // ── M5 launch-command fixture ───────────────────────────────────────────────
+  // A published bilingual "Design Thinking in Practice" workshop so the copilot
+  // launch command ("Launch a 3-session Design Thinking cohort in September …")
+  // resolves a real workshop by slug `design-thinking`.
+  // DESIGN_THINKING_ID = 00000000-0000-0000-0000-00000000d711
+  const DESIGN_THINKING_ID = '00000000-0000-0000-0000-00000000d711';
+  // Key on the unique slug so this is idempotent even if a `design-thinking`
+  // workshop already exists under a different id (leftover from a test run).
+  const designThinking = await prisma.workshop.upsert({
+    where: { slug: 'design-thinking' },
+    update: { status: 'published' },
+    create: {
+      id: DESIGN_THINKING_ID,
+      slug: 'design-thinking',
+      title: { en: 'Design Thinking in Practice', ja: '実践デザイン思考' },
+      summary: {
+        en: 'A hands-on design thinking workshop: empathize, define, ideate, prototype, and test with real users.',
+        ja: '共感・定義・発想・試作・検証を実際のユーザーと行う、実践型のデザイン思考ワークショップです。',
+      },
+      description: {
+        en: 'Over three live sessions you run the full design thinking loop on a problem your team actually cares about, leaving with a tested prototype and a repeatable method.',
+        ja: '全3回のライブセッションで、チームが本当に取り組みたい課題に対しデザイン思考の一連のプロセスを回し、検証済みのプロトタイプと再現可能な手法を持ち帰ります。',
+      },
+      outcomes: {
+        en: 'Facilitate a design sprint, frame problems as opportunities, and validate ideas with users before building.',
+        ja: 'デザインスプリントをファシリテートし、課題を機会として捉え、開発前にユーザーとアイデアを検証できるようになります。',
+      },
+      level: 'intermediate',
+      status: 'published',
+    },
+  });
+  const dtSkills = [
+    {
+      slug: 'design-sprint-facilitation',
+      en: 'Design sprint facilitation',
+      ja: 'デザインスプリントの進行',
+    },
+    { slug: 'user-research', en: 'User research', ja: 'ユーザーリサーチ' },
+    { slug: 'rapid-prototyping', en: 'Rapid prototyping', ja: 'ラピッドプロトタイピング' },
+  ];
+  for (const sk of dtSkills) {
+    const skill = await prisma.skill.upsert({
+      where: { slug: sk.slug },
+      update: { name: { en: sk.en, ja: sk.ja } },
+      create: { slug: sk.slug, name: { en: sk.en, ja: sk.ja } },
+    });
+    await prisma.workshopSkill.upsert({
+      where: { workshopId_skillId: { workshopId: designThinking.id, skillId: skill.id } },
+      update: {},
+      create: { workshopId: designThinking.id, skillId: skill.id },
+    });
+  }
+  console.info('Seeded Design Thinking in Practice workshop (slug design-thinking) for M5 launch.');
+
   // A bookable, priced cohort so the catalog has something to purchase (M2
   // checkout target), plus the HAYAWARI20 early-bird promo used in test vectors.
   const COHORT_ID = '00000000-0000-0000-0000-00000000c001';

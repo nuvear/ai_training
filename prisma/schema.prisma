@@ -212,6 +212,28 @@ enum ProgressEventKind {
   completed
 }
 
+// ── Marketing enums (DATA_MODEL §6) ─────────────────────────────────────────
+
+enum LandingStatus {
+  ai_draft
+  approved
+  live
+  retired
+}
+
+enum CampaignKind {
+  announce
+  reminder
+  last_seats
+}
+
+enum CampaignStatus {
+  draft
+  approved
+  running
+  done
+}
+
 // ── Identity & tenancy (DATA_MODEL §2) ───────────────────────────────────────
 
 model Organization {
@@ -349,6 +371,7 @@ model Workshop {
   contentItems ContentItem[]
   skills       WorkshopSkill[]
   quizzes      Quiz[]
+  landingPages LandingPage[]
 
   @@index([status])
   @@map("workshop")
@@ -379,6 +402,7 @@ model Cohort {
   orderItems  OrderItem[]
   enrollments Enrollment[]
   feedback    Feedback[]
+  campaigns   Campaign[]
 
   @@index([workshopId])
   @@index([status])
@@ -794,4 +818,86 @@ model ProgressEvent {
 
   @@index([enrollmentId])
   @@map("progress_event")
+}
+
+// ── Marketing (DATA_MODEL §6) ───────────────────────────────────────────────
+// Global business data (like workshop): NO row-level security, no org scoping.
+// The app role is granted on new tables via ALTER DEFAULT PRIVILEGES in the
+// rls_grants_guards migration.
+
+// A/B-testable landing page per workshop/locale/variant. content holds the
+// structured blocks (hero/outline/voices/details/flow/cta); traffic_weight is
+// updated by A/B reallocation.
+model LandingPage {
+  id           String        @id @default(uuid()) @db.Uuid
+  workshopId   String        @map("workshop_id") @db.Uuid
+  locale       Locale
+  variant      String        @db.Char(1)
+  // structured blocks: hero/outline/voices/details/flow/cta
+  content      Json          @default("{}")
+  status       LandingStatus @default(ai_draft)
+  trafficWeight Decimal      @default(0.5) @db.Decimal(4, 3) @map("traffic_weight")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  workshop Workshop           @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  visits   AttributionVisit[]
+
+  @@index([workshopId])
+  @@map("landing_page")
+}
+
+// Email campaign tied to a cohort. sequence is an i18n email sequence — an array
+// of { subject: { en, ja }, body: { en, ja }, offsetDays }.
+model Campaign {
+  id          String         @id @default(uuid()) @db.Uuid
+  cohortId    String         @map("cohort_id") @db.Uuid
+  kind        CampaignKind
+  // (i18n) email sequence: [{ subject: { en, ja }, body: { en, ja }, offsetDays }]
+  sequence    Json           @default("[]")
+  status      CampaignStatus @default(draft)
+  scheduledAt DateTime?      @map("scheduled_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  cohort Cohort         @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  sends  CampaignSend[]
+
+  @@index([cohortId])
+  @@map("campaign")
+}
+
+// Per-recipient send record with delivery/engagement timestamps.
+model CampaignSend {
+  id         String    @id @default(uuid()) @db.Uuid
+  campaignId String    @map("campaign_id") @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  email      String
+  locale     Locale
+  sentAt     DateTime? @map("sent_at")
+  openedAt   DateTime? @map("opened_at")
+  clickedAt  DateTime? @map("clicked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_send")
+}
+
+// Attribution visit joined to order.utm for funnel reporting. landing_page_id is
+// nullable and set null on landing-page deletion so history survives.
+model AttributionVisit {
+  id            String   @id @default(uuid()) @db.Uuid
+  sessionKey    String   @map("session_key")
+  utm           Json     @default("{}")
+  referrer      String?
+  landingPageId String?  @map("landing_page_id") @db.Uuid
+  at            DateTime @default(now())
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  landingPage LandingPage? @relation(fields: [landingPageId], references: [id], onDelete: SetNull)
+
+  @@index([sessionKey])
+  @@map("attribution_visit")
 }

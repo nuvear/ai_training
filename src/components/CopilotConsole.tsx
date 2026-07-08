@@ -5,18 +5,44 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { AiTier } from '@/generated/prisma';
 import { TierBadge } from './TierBadge';
 
+// A single planned step as returned by POST /api/copilot/plan. `state` is a
+// client-only view of what happened after /run: proposed steps whose effective
+// tier is auto become `executed`; approve/owner steps become `queued` (they wait
+// in the approval queue).
+type StepState = 'proposed' | 'executed' | 'queued';
+
 interface PlanStep {
   actionId: string;
+  seq: number;
   toolName: string;
   tier: AiTier;
-  status: string;
   summary: { en: string; ja: string };
-  output?: { pong?: { en: string; ja: string } };
+  state: StepState;
 }
 
 interface ChatMessage {
   role: 'user' | 'copilot';
   text: string;
+}
+
+// POST /api/copilot/plan → { parentId, recognized, steps: [{ actionId, seq, toolName, tier, summary }] }
+interface PlanResponse {
+  parentId: string;
+  recognized: boolean;
+  steps: Array<{
+    actionId: string;
+    seq: number;
+    toolName: string;
+    tier: AiTier;
+    summary: { en: string; ja: string };
+  }>;
+}
+
+// POST /api/copilot/plan/<parentId>/run → { status, executed: string[], pending: string[] }
+interface RunResponse {
+  status: 'running' | 'complete';
+  executed: string[];
+  pending: string[];
 }
 
 export function CopilotConsole({ firstName }: { firstName: string }) {
@@ -27,7 +53,9 @@ export function CopilotConsole({ firstName }: { firstName: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'copilot', text: t('greeting', { name: firstName }) },
   ]);
+  const [parentId, setParentId] = useState<string | null>(null);
   const [plan, setPlan] = useState<PlanStep[]>([]);
+  const [ran, setRan] = useState(false);
   const [command, setCommand] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -38,41 +66,76 @@ export function CopilotConsole({ firstName }: { firstName: string }) {
     setBusy(true);
     setMessages((m) => [...m, { role: 'user', text }]);
     setCommand('');
+    setPlan([]);
+    setParentId(null);
+    setRan(false);
 
     try {
       const res = await fetch('/api/copilot/plan', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ command: text }),
+        body: JSON.stringify({ command: text, locale }),
       });
-      const data = await res.json();
-      if (!res.ok || data.recognized === false) {
+      const data = (await res.json()) as PlanResponse;
+      if (!res.ok || data.recognized === false || !data.steps?.length) {
         setMessages((m) => [...m, { role: 'copilot', text: t('notRecognized') }]);
-      } else {
-        setPlan(data.plan);
-        setMessages((m) => [...m, { role: 'copilot', text: t('planHeading') }]);
+        return;
       }
+      setParentId(data.parentId);
+      setPlan(data.steps.map((s) => ({ ...s, state: 'proposed' as StepState })));
+      setMessages((m) => [...m, { role: 'copilot', text: t('planReply') }]);
+    } catch {
+      setMessages((m) => [...m, { role: 'copilot', text: t('error') }]);
     } finally {
       setBusy(false);
     }
   }
 
-  async function decide(step: PlanStep, action: 'approve' | 'reject') {
+  async function run() {
+    if (!parentId || busy) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/approvals/${step.actionId}/${action}`, { method: 'POST' });
-      const data = await res.json();
-      setPlan((p) =>
-        p.map((s) =>
-          s.actionId === step.actionId ? { ...s, status: data.status, output: data.output } : s,
-        ),
-      );
-      if (action === 'approve' && res.ok && data.status === 'executed') {
-        setMessages((m) => [...m, { role: 'copilot', text: t('resultPong') }]);
+      const res = await fetch(`/api/copilot/plan/${parentId}/run`, { method: 'POST' });
+      const data = (await res.json()) as RunResponse;
+      if (!res.ok) {
+        setMessages((m) => [...m, { role: 'copilot', text: t('error') }]);
+        return;
       }
+      const executed = new Set(data.executed);
+      let queuedCount = 0;
+      setPlan((p) =>
+        p.map((s) => {
+          if (executed.has(s.actionId)) return { ...s, state: 'executed' as StepState };
+          queuedCount++;
+          return { ...s, state: 'queued' as StepState };
+        }),
+      );
+      setRan(true);
+      setMessages((m) => [
+        ...m,
+        {
+          role: 'copilot',
+          text:
+            queuedCount > 0
+              ? t('runReplyQueued', { queued: queuedCount, executed: data.executed.length })
+              : t('runReplyDone', { executed: data.executed.length }),
+        },
+      ]);
+    } catch {
+      setMessages((m) => [...m, { role: 'copilot', text: t('error') }]);
     } finally {
       setBusy(false);
     }
+  }
+
+  function stepStatus(step: PlanStep) {
+    if (step.state === 'executed') {
+      return <span className="badge ok">{t('stateExecuted')}</span>;
+    }
+    if (step.state === 'queued') {
+      return <span className="badge approve">{t('stateQueued')}</span>;
+    }
+    return null;
   }
 
   return (
@@ -80,55 +143,53 @@ export function CopilotConsole({ firstName }: { firstName: string }) {
       <div className="chat" data-testid="copilot-chat">
         {messages.map((m, i) => (
           <div key={i} className={`msg ${m.role === 'user' ? 'user' : 'claude'}`}>
-            <div className="who">{m.role === 'user' ? t('you') : t('reply')}</div>
+            <div className="who">{m.role === 'user' ? t('you') : t('aiLabel')}</div>
             <div>{m.text}</div>
           </div>
         ))}
-      </div>
 
-      {plan.length > 0 && (
-        <div className="panel" data-testid="plan-preview">
-          <h2>{t('planHeading')}</h2>
-          <ul className="plan">
-            {plan.map((step) => (
-              <li key={step.actionId} data-testid="plan-step">
-                <span>
-                  <TierBadge tier={step.tier} label={tTier(step.tier)} />{' '}
-                  <span className="mono">{step.toolName}</span> — {step.summary[locale]}
-                </span>
-                {step.status === 'executed' ? (
-                  <span className="badge ok" data-testid="step-executed">
-                    {t('executed')} · {step.output?.pong?.[locale]}
+        {plan.length > 0 && (
+          <div className="msg claude" data-testid="plan-preview">
+            <div className="who">{t('aiLabel')}</div>
+            <div>{t('planHeading')}</div>
+            <ul className="plan">
+              {plan.map((step) => (
+                <li key={step.actionId} data-testid="plan-step">
+                  <span>
+                    <span className="mono">{step.toolName}</span> — {step.summary[locale]}
                   </span>
-                ) : step.status === 'rejected' ? (
-                  <span className="badge owner">{step.status}</span>
-                ) : (
                   <span className="row">
-                    <button
-                      type="button"
-                      className="btn pri"
-                      disabled={busy}
-                      onClick={() => decide(step, 'approve')}
-                      data-testid="approve-step"
-                    >
-                      {t('approve')}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn danger"
-                      disabled={busy}
-                      onClick={() => decide(step, 'reject')}
-                      data-testid="reject-step"
-                    >
-                      {t('reject')}
-                    </button>
+                    {stepStatus(step)}
+                    <TierBadge tier={step.tier} label={tTier(step.tier)} />
                   </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+                </li>
+              ))}
+            </ul>
+            {!ran ? (
+              <div className="row" style={{ marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="btn pri"
+                  disabled={busy}
+                  onClick={run}
+                  data-testid="approve-plan-run"
+                >
+                  {t('approvePlanRun')}
+                </button>
+                <button type="button" className="btn sec" disabled={busy}>
+                  {t('edit')}
+                </button>
+              </div>
+            ) : (
+              plan.some((s) => s.state === 'queued') && (
+                <p className="note" style={{ marginTop: 12 }} data-testid="awaiting-note">
+                  {t('awaitingNote')}
+                </p>
+              )
+            )}
+          </div>
+        )}
+      </div>
 
       <form className="cmd" onSubmit={send}>
         <input

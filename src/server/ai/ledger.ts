@@ -63,10 +63,15 @@ export async function proposeAction(session: SessionUser, args: ProposeArgs): Pr
 
 /** Runs the handler for an already-approved (or auto) action and records the
  * result. Re-reads the tier from the registry so a tampered row can't bypass
- * the gate. */
+ * the gate. When the action is a plan child (`parentId` set), its stored input
+ * may contain `$ref` placeholders — these are resolved from sibling outputs
+ * before validation so the handler sees concrete values. */
 async function runAction(session: SessionUser, action: AiAction): Promise<AiAction> {
   const def = getTool(action.toolName);
-  const parsed = def.input.safeParse(action.input);
+  const rawInput = action.parentId
+    ? await (await import('./orchestrator')).resolveChildInput(action)
+    : action.input;
+  const parsed = def.input.safeParse(rawInput);
   if (!parsed.success) {
     return prisma.aiAction.update({
       where: { id: action.id },
@@ -143,7 +148,21 @@ export async function approveAndExecute(
 
   // Execute under the ORIGINAL initiator's tenant context where possible; for
   // M0 the initiator is staff/owner, so the approver's context is equivalent.
-  return runAction(approver, { ...action, status: 'approved', approvedById: approver.userId });
+  const executed = await runAction(approver, {
+    ...action,
+    status: 'approved',
+    approvedById: approver.userId,
+  });
+
+  // Plan resume (M5): a plan child that just executed may unblock now-runnable
+  // auto steps in the same plan. Re-run the parent so it continues; when all
+  // children are executed the parent is marked executed.
+  if (executed.status === 'executed' && executed.parentId) {
+    const { resumePlan } = await import('./orchestrator');
+    await resumePlan(approver, executed.parentId);
+  }
+
+  return executed;
 }
 
 export async function rejectAction(approver: SessionUser, actionId: string): Promise<AiAction> {
