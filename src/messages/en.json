@@ -6,6 +6,8 @@
     "approvals": "Approvals",
     "admin": "Admin",
     "org": "Org",
+    "me": "My Learning",
+    "help": "Help",
     "localeLabel": "Language"
   },
   "Catalog": {
@@ -241,6 +243,52 @@
     "emailsRequired": "Please enter at least one email address.",
     "assignSuccess": "Invited {count} employee(s). They will receive a sign-in email shortly.",
     "assignError": "Could not send the invitations. Please check the addresses and try again."
+  },
+  "Participant": {
+    "tateLearning": "MY LEARNING",
+    "tateSessions": "SESSIONS",
+    "greeting": "Hello, {name}",
+    "statusInProgress": "in progress",
+    "statusCompleted": "completed",
+    "kpiAttendance": "attendance",
+    "kpiQuiz": "quiz score (pass ≥ {pass})",
+    "kpiQuizNone": "quiz score (not taken yet)",
+    "certIssued": "Certificate issued",
+    "certDownload": "Download PDF",
+    "certVerify": "Verify",
+    "certPending": "Certificate",
+    "certPendingNote": "Issued after you complete the workshop.",
+    "sessionsHeading": "Sessions",
+    "sessionSeq": "Session {seq}",
+    "attended": "Attended",
+    "upcoming": "Upcoming",
+    "preworkNote": "Pre-work for your next session is available — it takes about 20 minutes.",
+    "preworkAction": "Ask the concierge",
+    "emptyState": "You are not enrolled in a workshop yet. Browse the catalog to get started.",
+    "browseCatalog": "Browse catalog"
+  },
+  "Verify": {
+    "tateLabel": "VERIFY",
+    "heading": "Certificate verification",
+    "verified": "Verified",
+    "confirms": "This confirms that {name} completed {workshop}.",
+    "labelName": "Participant",
+    "labelWorkshop": "Workshop",
+    "labelIssued": "Issued",
+    "participantFallback": "Participant",
+    "notFound": "This certificate could not be verified."
+  },
+  "Concierge": {
+    "tateLabel": "CONCIERGE",
+    "heading": "Concierge",
+    "subtitle": "Ask about workshops, schedules, or enrollment. Answers come from an AI assistant.",
+    "greeting": "Hello — I'm the WorkshopOS concierge, an AI assistant. How can I help you today?",
+    "aiLabel": "Concierge (AI)",
+    "you": "You",
+    "placeholder": "Ask a question…",
+    "inputLabel": "Message the concierge",
+    "send": "Send",
+    "errorReply": "Sorry, something went wrong. Please try again."
   },
   "Tier": {
     "auto": "auto",

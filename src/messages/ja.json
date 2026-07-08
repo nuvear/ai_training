@@ -6,6 +6,8 @@
     "approvals": "承認",
     "admin": "管理",
     "org": "法人ポータル",
+    "me": "学習状況",
+    "help": "コンシェルジュ",
     "localeLabel": "言語"
   },
   "Catalog": {
@@ -241,6 +243,52 @@
     "emailsRequired": "メールアドレスを1件以上ご入力ください。",
     "assignSuccess": "{count} 名の従業員を招待いたしました。まもなくログイン用のメールが届きます。",
     "assignError": "招待の送信に失敗いたしました。メールアドレスをご確認のうえ、再度お試しください。"
+  },
+  "Participant": {
+    "tateLearning": "学習状況",
+    "tateSessions": "セッション",
+    "greeting": "こんにちは、{name}さん",
+    "statusInProgress": "受講中",
+    "statusCompleted": "修了",
+    "kpiAttendance": "出席率",
+    "kpiQuiz": "クイズ得点（合格 {pass} 以上）",
+    "kpiQuizNone": "クイズ得点（未受験）",
+    "certIssued": "修了証を発行しました",
+    "certDownload": "PDFをダウンロード",
+    "certVerify": "証明を確認",
+    "certPending": "修了証",
+    "certPendingNote": "ワークショップ修了後に発行いたします。",
+    "sessionsHeading": "セッション一覧",
+    "sessionSeq": "第{seq}回",
+    "attended": "出席",
+    "upcoming": "予定",
+    "preworkNote": "次回セッションの事前課題が公開されています。所要時間は約20分です。",
+    "preworkAction": "コンシェルジュに質問する",
+    "emptyState": "まだワークショップに登録されていません。講座一覧からお申し込みください。",
+    "browseCatalog": "講座一覧を見る"
+  },
+  "Verify": {
+    "tateLabel": "証明確認",
+    "heading": "修了証の確認",
+    "verified": "確認済み",
+    "confirms": "{name}さんが{workshop}を修了されたことを確認いたしました。",
+    "labelName": "受講者",
+    "labelWorkshop": "ワークショップ",
+    "labelIssued": "発行日",
+    "participantFallback": "受講者",
+    "notFound": "この修了証は確認できませんでした。"
+  },
+  "Concierge": {
+    "tateLabel": "コンシェルジュ",
+    "heading": "コンシェルジュ",
+    "subtitle": "ワークショップや日程、お申し込みについてお尋ねください。回答はAIアシスタントがご案内します。",
+    "greeting": "こんにちは。WorkshopOSコンシェルジュ（AIアシスタント）です。どのようなご用件でしょうか。",
+    "aiLabel": "コンシェルジュ（AIアシスタント）",
+    "you": "あなた",
+    "placeholder": "ご質問を入力してください…",
+    "inputLabel": "コンシェルジュにメッセージを送る",
+    "send": "送信",
+    "errorReply": "申し訳ございません。問題が発生しました。もう一度お試しください。"
   },
   "Tier": {
     "auto": "自動",

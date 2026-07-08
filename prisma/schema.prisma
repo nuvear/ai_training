@@ -184,6 +184,34 @@ enum EnrollmentStatus {
   refunded
 }
 
+// ── Learning & progress enums (DATA_MODEL §5) ───────────────────────────────
+
+enum AttendanceStatus {
+  present
+  absent
+  excused
+}
+
+enum AttendanceMethod {
+  facilitator
+  self_checkin
+  auto_join
+}
+
+// AI-generated quizzes are staff-reviewed before publish.
+enum QuizStatus {
+  ai_draft
+  published
+}
+
+enum ProgressEventKind {
+  prework_done
+  session_attended
+  quiz_passed
+  nudge_sent
+  completed
+}
+
 // ── Identity & tenancy (DATA_MODEL §2) ───────────────────────────────────────
 
 model Organization {
@@ -320,6 +348,7 @@ model Workshop {
   cohorts      Cohort[]
   contentItems ContentItem[]
   skills       WorkshopSkill[]
+  quizzes      Quiz[]
 
   @@index([status])
   @@map("workshop")
@@ -370,7 +399,8 @@ model Session {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  cohort     Cohort       @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  attendance Attendance[]
 
   @@unique([cohortId, seq])
   @@index([cohortId])
@@ -615,9 +645,13 @@ model Enrollment {
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
 
-  user     User      @relation(fields: [userId], references: [id])
-  cohort   Cohort    @relation(fields: [cohortId], references: [id])
-  seatPool SeatPool? @relation(fields: [seatPoolId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  cohort        Cohort         @relation(fields: [cohortId], references: [id])
+  seatPool      SeatPool?      @relation(fields: [seatPoolId], references: [id])
+  attendance    Attendance[]
+  quizAttempts  QuizAttempt[]
+  certificate   Certificate?
+  progressEvents ProgressEvent[]
 
   @@unique([userId, cohortId])
   @@index([cohortId])
@@ -652,4 +686,112 @@ model Feedback {
 
   @@index([cohortId])
   @@map("feedback")
+}
+
+// Per-session attendance record (DATA_MODEL §5). One row per enrollment/session.
+model Attendance {
+  id           String           @id @default(uuid()) @db.Uuid
+  enrollmentId String           @map("enrollment_id") @db.Uuid
+  sessionId    String           @map("session_id") @db.Uuid
+  status       AttendanceStatus
+  method       AttendanceMethod
+  recordedAt   DateTime         @default(now()) @map("recorded_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  session    Session    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, sessionId])
+  @@index([sessionId])
+  @@map("attendance")
+}
+
+// AI-generated quiz, staff-reviewed before publish (DATA_MODEL §5).
+model Quiz {
+  id         String     @id @default(uuid()) @db.Uuid
+  workshopId String     @map("workshop_id") @db.Uuid
+  // (i18n) title { en, ja }
+  title      Json
+  passPct    Int        @default(70) @map("pass_pct")
+  status     QuizStatus @default(ai_draft)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  workshop  Workshop       @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([workshopId])
+  @@map("quiz")
+}
+
+model QuizQuestion {
+  id          String   @id @default(uuid()) @db.Uuid
+  quizId      String   @map("quiz_id") @db.Uuid
+  seq         Int
+  // (i18n) prompt { en, ja }
+  prompt      Json
+  // (i18n) options, e.g. { "a": { en, ja }, "b": { en, ja }, ... }
+  options     Json
+  correctKey  String   @map("correct_key")
+  // (i18n) explanation { en, ja }
+  explanation Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, seq])
+  @@map("quiz_question")
+}
+
+model QuizAttempt {
+  id           String   @id @default(uuid()) @db.Uuid
+  enrollmentId String   @map("enrollment_id") @db.Uuid
+  quizId       String   @map("quiz_id") @db.Uuid
+  answers      Json
+  scorePct     Int      @map("score_pct")
+  passed       Boolean
+  attemptedAt  DateTime @default(now()) @map("attempted_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  quiz       Quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId])
+  @@map("quiz_attempt")
+}
+
+// One certificate per completed enrollment; verify_code backs the public URL.
+model Certificate {
+  id              String   @id @default(uuid()) @db.Uuid
+  enrollmentId    String   @unique @map("enrollment_id") @db.Uuid
+  verifyCode      String   @unique @map("verify_code")
+  issuedAt        DateTime @default(now()) @map("issued_at")
+  pdfStorageKeyEn String?  @map("pdf_storage_key_en")
+  pdfStorageKeyJa String?  @map("pdf_storage_key_ja")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@map("certificate")
+}
+
+// Append-only progress stream (DATA_MODEL §5). Feeds the skill graph, predictive
+// ops, and narrative analytics; never deleted (guarded like ai_action). No
+// updated_at — rows are immutable once written.
+model ProgressEvent {
+  id           String            @id @default(uuid()) @db.Uuid
+  enrollmentId String            @map("enrollment_id") @db.Uuid
+  kind         ProgressEventKind
+  payload      Json              @default("{}")
+  at           DateTime          @default(now())
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId])
+  @@map("progress_event")
 }

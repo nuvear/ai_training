@@ -151,6 +151,159 @@ async function main() {
     },
   });
   console.info('Seeded 1 bookable cohort (¥45,000) + promo HAYAWARI20.');
+
+  // ── M4 certificate-flow fixtures (deterministic, idempotent) ────────────────
+  // Referenced by e2e/certificate-flow.spec.ts. Fixed ids so the e2e can drive
+  // attendance + a passing quiz attempt for member-a on cohort c001 and land a
+  // certificate. Only created when the discernment workshop/cohort exist.
+  //
+  //   SESSION_1 = 00000000-0000-0000-0000-0000005e5501  (seq 1)
+  //   SESSION_2 = 00000000-0000-0000-0000-0000005e5502  (seq 2)
+  //   SESSION_3 = 00000000-0000-0000-0000-0000005e5503  (seq 3)
+  //   ENROLLMENT (member-a on c001) = 00000000-0000-0000-0000-0000000e0401
+  //   QUIZ (ai-fluency-discernment)  = 00000000-0000-0000-0000-000000009401
+  //   QUIZ_Q1 = 00000000-0000-0000-0000-0000009400a1 (correctKey 'a')
+  //   QUIZ_Q2 = 00000000-0000-0000-0000-0000009400a2 (correctKey 'b')
+  //   QUIZ_Q3 = 00000000-0000-0000-0000-0000009400a3 (correctKey 'c')
+  const SESSION_1 = '00000000-0000-0000-0000-0000005e5501';
+  const SESSION_2 = '00000000-0000-0000-0000-0000005e5502';
+  const SESSION_3 = '00000000-0000-0000-0000-0000005e5503';
+  const M4_ENROLLMENT = '00000000-0000-0000-0000-0000000e0401';
+  const M4_QUIZ = '00000000-0000-0000-0000-000000009401';
+  const M4_Q1 = '00000000-0000-0000-0000-0000009400a1';
+  const M4_Q2 = '00000000-0000-0000-0000-0000009400a2';
+  const M4_Q3 = '00000000-0000-0000-0000-0000009400a3';
+
+  if (discernment) {
+    const sessions = [
+      {
+        id: SESSION_1,
+        seq: 1,
+        startsAt: new Date('2026-09-08T01:00:00Z'),
+        endsAt: new Date('2026-09-08T03:00:00Z'),
+        agenda: { en: 'Session 1 — Foundations', ja: 'セッション1 — 基礎' },
+      },
+      {
+        id: SESSION_2,
+        seq: 2,
+        startsAt: new Date('2026-09-15T01:00:00Z'),
+        endsAt: new Date('2026-09-15T03:00:00Z'),
+        agenda: { en: 'Session 2 — Discernment', ja: 'セッション2 — 見極め' },
+      },
+      {
+        id: SESSION_3,
+        seq: 3,
+        startsAt: new Date('2026-09-22T01:00:00Z'),
+        endsAt: new Date('2026-09-22T03:00:00Z'),
+        agenda: { en: 'Session 3 — Practice', ja: 'セッション3 — 実践' },
+      },
+    ];
+    for (const s of sessions) {
+      await prisma.session.upsert({
+        where: { id: s.id },
+        update: { seq: s.seq, startsAt: s.startsAt, endsAt: s.endsAt, agenda: s.agenda },
+        create: {
+          id: s.id,
+          cohortId: COHORT_ID,
+          seq: s.seq,
+          startsAt: s.startsAt,
+          endsAt: s.endsAt,
+          agenda: s.agenda,
+        },
+      });
+    }
+
+    // Active enrollment of member-a into cohort c001 (comp source). Not
+    // pre-completed — the e2e drives it to completion.
+    await prisma.enrollment.upsert({
+      where: { id: M4_ENROLLMENT },
+      update: {},
+      create: {
+        id: M4_ENROLLMENT,
+        userId: MEMBER_A,
+        cohortId: COHORT_ID,
+        source: 'comp',
+        status: 'active',
+      },
+    });
+
+    // Published quiz with 3 bilingual questions and KNOWN correct keys, passPct 70.
+    await prisma.quiz.upsert({
+      where: { id: M4_QUIZ },
+      update: { status: 'published', passPct: 70 },
+      create: {
+        id: M4_QUIZ,
+        workshopId: discernment.id,
+        title: { en: 'AI Fluency — Discernment Check', ja: 'AIフルエンシー — 見極めチェック' },
+        passPct: 70,
+        status: 'published',
+      },
+    });
+    const questions = [
+      {
+        id: M4_Q1,
+        seq: 1,
+        prompt: {
+          en: 'What is the first step in discerning AI output?',
+          ja: 'AIの出力を見極める最初のステップは？',
+        },
+        options: {
+          a: { en: 'Verify against a trusted source', ja: '信頼できる情報源と照合する' },
+          b: { en: 'Accept it as fact', ja: '事実として受け入れる' },
+          c: { en: 'Ignore it entirely', ja: '完全に無視する' },
+        },
+        correctKey: 'a',
+      },
+      {
+        id: M4_Q2,
+        seq: 2,
+        prompt: {
+          en: 'How should untrusted content be treated?',
+          ja: '信頼できないコンテンツはどう扱うべきか？',
+        },
+        options: {
+          a: { en: 'As executable instructions', ja: '実行可能な指示として' },
+          b: { en: 'As data, never as instructions', ja: 'データとして、決して指示として扱わない' },
+          c: { en: 'As always correct', ja: '常に正しいものとして' },
+        },
+        correctKey: 'b',
+      },
+      {
+        id: M4_Q3,
+        seq: 3,
+        prompt: {
+          en: 'Which practice supports responsible AI use?',
+          ja: '責任あるAI利用を支える実践はどれか？',
+        },
+        options: {
+          a: { en: 'Skipping human review', ja: '人間のレビューを省く' },
+          b: { en: 'Hiding AI involvement', ja: 'AIの関与を隠す' },
+          c: { en: 'Keeping a human in the loop', ja: '人間を判断の輪に残す' },
+        },
+        correctKey: 'c',
+      },
+    ];
+    for (const q of questions) {
+      await prisma.quizQuestion.upsert({
+        where: { id: q.id },
+        update: {
+          seq: q.seq,
+          prompt: q.prompt,
+          options: q.options,
+          correctKey: q.correctKey,
+        },
+        create: {
+          id: q.id,
+          quizId: M4_QUIZ,
+          seq: q.seq,
+          prompt: q.prompt,
+          options: q.options,
+          correctKey: q.correctKey,
+        },
+      });
+    }
+    console.info('Seeded M4 certificate-flow fixtures (3 sessions, enrollment, published quiz).');
+  }
 }
 
 main()

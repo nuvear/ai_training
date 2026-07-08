@@ -21,6 +21,20 @@ import { seatpoolCreateOffer } from './tools/seatpools';
 import { orgCreate, orgAssignSeats } from './tools/orgs';
 import { participantEnroll } from './tools/participants';
 import { reportOrgProgress } from './tools/reports';
+// M4 — participant layer (COPILOT_TOOLS §2/§5/§7)
+import { attendanceRecord } from './tools/attendance';
+import { quizGenerate, quizPublish } from './tools/quizzes';
+import { certificateIssue } from './tools/certificates';
+import { nudgeSend } from './tools/nudges';
+import { participantSearch } from './tools/participant-search';
+import {
+  catalogSearch,
+  cohortAvailability,
+  enrollmentBeginCheckout,
+  promoValidate,
+  faqAnswer,
+  handoffToHuman,
+} from './tools/concierge';
 
 // The server-side tool registry: name → definition. This is the authority for
 // which tools exist, their tier, and which surfaces may call them. Agents and
@@ -63,6 +77,20 @@ register(orgCreate);
 register(orgAssignSeats);
 register(participantEnroll);
 register(reportOrgProgress);
+// M4 — participant layer: copilot tools (COPILOT_TOOLS §2/§5)
+register(attendanceRecord);
+register(quizGenerate);
+register(quizPublish);
+register(certificateIssue);
+register(nudgeSend);
+register(participantSearch);
+// M4 — concierge surface: restricted §7 subset (surfaces:['concierge'] only)
+register(catalogSearch);
+register(cohortAvailability);
+register(enrollmentBeginCheckout);
+register(promoValidate);
+register(faqAnswer);
+register(handoffToHuman);
 
 export class ToolError extends Error {
   constructor(
