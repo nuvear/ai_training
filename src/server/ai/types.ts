@@ -11,6 +11,9 @@ export type Tier = AiTier; // 'auto' | 'approve' | 'owner_only'
 export interface ToolContext {
   session: SessionUser;
   tx: Prisma.TransactionClient;
+  /** The ledger row id for THIS execution. Handlers that persist a link back to
+   * the ledger (e.g. refund.execute → refund.ai_action_id) use it. */
+  actionId: string;
 }
 
 export interface ToolDefinition<I = unknown, O = unknown> {
@@ -29,4 +32,13 @@ export interface ToolDefinition<I = unknown, O = unknown> {
   handler: (ctx: ToolContext, input: I) => Promise<O>;
   /** Bilingual one-line description shown in the plan preview. */
   summarize: (input: I) => BilingualText;
+  /**
+   * Optional per-call tier override, computed SERVER-SIDE from the parsed input
+   * (e.g. `refund.execute` is `approve` ≤ ¥10,000, `owner_only` above). Still
+   * server-authoritative: the ledger stores `dynamicTier(input) ?? tier`, and the
+   * approval gate recomputes it the same way from the stored input, so a caller
+   * cannot escalate or de-escalate their own permission. When absent, `tier` is
+   * the fixed tier for every call.
+   */
+  dynamicTier?: (input: I) => Tier;
 }

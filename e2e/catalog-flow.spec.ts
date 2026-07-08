@@ -21,7 +21,9 @@ test('author EN → localize → review → publish → catalog shows it in both
   const stamp = Date.now();
   const titleEn = `E2E Catalog Workshop ${stamp}`;
   const summaryEn = `E2E summary marker ${stamp}`;
-  const slugPrefix = 'e2e-catalog-workshop';
+  // Exact slug workshop.create derives from the title (slugify). Match it exactly,
+  // not by prefix — earlier e2e runs leave their own published rows behind.
+  const slug = `e2e-catalog-workshop-${stamp}`;
 
   // 1. create — auto tier, executes immediately
   const create = await page.request.post('/api/tools/execute', {
@@ -74,14 +76,14 @@ test('author EN → localize → review → publish → catalog shows it in both
 
   // 5a. EN catalog shows the workshop
   await page.goto('/en/catalog');
-  const enCard = page.locator(`[data-testid="catalog-card"][data-slug^="${slugPrefix}"]`);
+  const enCard = page.locator(`[data-testid="catalog-card"][data-slug="${slug}"]`);
   await expect(enCard).toHaveCount(1);
   await expect(enCard).toContainText(summaryEn);
   await expect(enCard).toContainText('Led by Rajkumar Rajagobalan');
 
   // 5b. JA catalog shows the same workshop with JA typography/labels
   await page.goto('/ja/catalog');
-  const jaCard = page.locator(`[data-testid="catalog-card"][data-slug^="${slugPrefix}"]`);
+  const jaCard = page.locator(`[data-testid="catalog-card"][data-slug="${slug}"]`);
   await expect(jaCard).toHaveCount(1);
   await expect(jaCard).toContainText('入門'); // JA level label
   await expect(jaCard).toContainText('ラジクマール'); // founder katakana byline

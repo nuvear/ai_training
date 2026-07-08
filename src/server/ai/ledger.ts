@@ -3,8 +3,20 @@ import { prisma } from '@/server/db/client';
 import { withOrgContext, tenantContext } from '@/server/db/rls';
 import type { SessionUser } from '@/server/auth/session';
 import { assertSurfaceAllowed, getTool, ToolError } from './registry';
-import type { Surface } from './types';
+import type { Surface, Tier, ToolDefinition } from './types';
 import type { AiAction } from '@/generated/prisma';
+
+/**
+ * The single, server-authoritative tier resolver. Uses a tool's optional
+ * `dynamicTier(input)` (computed from the PARSED input) when present, else the
+ * fixed registry tier. Both `proposeAction` (what to store) and
+ * `approveAndExecute` (what role may approve) go through here, so the tier can
+ * never be escalated or lowered by the caller — it is always recomputed from the
+ * stored input the same way.
+ */
+export function effectiveTier(def: ToolDefinition, input: unknown): Tier {
+  return def.dynamicTier?.(input) ?? def.tier;
+}
 
 export interface ProposeArgs {
   surface: Surface;
@@ -38,7 +50,8 @@ export async function proposeAction(session: SessionUser, args: ProposeArgs): Pr
     data: {
       surface: args.surface,
       toolName: def.name,
-      tier: def.tier, // authoritative, from the registry
+      // authoritative: fixed registry tier, or the tool's dynamicTier(input).
+      tier: effectiveTier(def, parsed.data),
       input: parsed.data as object,
       status: 'proposed',
       initiatedById: session.userId,
@@ -63,7 +76,7 @@ async function runAction(session: SessionUser, action: AiAction): Promise<AiActi
 
   try {
     const output = await withOrgContext(tenantContext(session), (tx) =>
-      def.handler({ session, tx }, parsed.data),
+      def.handler({ session, tx, actionId: action.id }, parsed.data),
     );
     return prisma.aiAction.update({
       where: { id: action.id },
@@ -112,7 +125,13 @@ export async function approveAndExecute(
     throw new LedgerError(409, `Action is ${action.status}, not proposed`);
   }
 
-  const tier = getTool(action.toolName).tier; // authoritative
+  // Recompute the tier from the tool + STORED input (dynamic tiers included) —
+  // never trust the persisted `tier` column, which a tampered row could forge.
+  const def = getTool(action.toolName);
+  const parsedInput = def.input.safeParse(action.input);
+  const tier: AiAction['tier'] = parsedInput.success
+    ? effectiveTier(def, parsedInput.data)
+    : def.tier;
   if (!canApprove(approver.role, tier)) {
     throw new LedgerError(403, `Your role cannot approve a ${tier} action`);
   }
@@ -145,8 +164,12 @@ export async function proposeAndAutoExecute(
   args: ProposeArgs,
 ): Promise<AiAction> {
   const def = getTool(args.toolName);
-  if (def.tier !== 'auto') {
-    throw new LedgerError(403, `${def.name} is ${def.tier}-tier and requires approval`);
+  // A dynamic-tier tool may resolve to auto for some inputs; validate then check
+  // the effective tier for THIS input rather than only the fixed tier.
+  const parsed = def.input.safeParse(args.input);
+  const tier = parsed.success ? effectiveTier(def, parsed.data) : def.tier;
+  if (tier !== 'auto') {
+    throw new LedgerError(403, `${def.name} is ${tier}-tier and requires approval`);
   }
   const action = await proposeAction(session, args);
   if (action.status !== 'proposed') return action; // idempotent replay

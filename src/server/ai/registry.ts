@@ -10,6 +10,13 @@ import { contentLocalize, contentMarkReviewed, contentGenerate } from './tools/c
 import { cohortCreate, cohortClone, cohortCancel } from './tools/cohorts';
 import { sessionUpdateAgenda } from './tools/sessions';
 import { waitlistPromote } from './tools/waitlist';
+// M2 — commerce & finance (COPILOT_TOOLS §3–§4)
+import { orderLookup, orderResendReceipt } from './tools/orders';
+import { invoiceIssue, invoiceMarkPaid } from './tools/invoices';
+import { refundExecute } from './tools/refunds';
+import { pricingChange } from './tools/pricing';
+import { promoSuggest, promoCreate, promoDeactivate } from './tools/promos';
+import { seatpoolCreateOffer } from './tools/seatpools';
 
 // The server-side tool registry: name → definition. This is the authority for
 // which tools exist, their tier, and which surfaces may call them. Agents and
@@ -36,6 +43,17 @@ register(waitlistPromote);
 register(contentGenerate);
 register(contentLocalize);
 register(contentMarkReviewed);
+// M2 — commerce & finance (COPILOT_TOOLS §3–§4)
+register(orderLookup);
+register(orderResendReceipt);
+register(invoiceIssue);
+register(invoiceMarkPaid);
+register(refundExecute);
+register(pricingChange);
+register(promoSuggest);
+register(promoCreate);
+register(promoDeactivate);
+register(seatpoolCreateOffer);
 
 export class ToolError extends Error {
   constructor(

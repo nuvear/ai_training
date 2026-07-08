@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Chrome } from '@/components/Chrome';
 import { TategakiLabel } from '@/components/TategakiLabel';
+import { Link } from '@/i18n/navigation';
 import { listPublishedWorkshops } from '@/server/domain/catalog';
 import { formatJpy, formatUsd, formatDate } from '@/lib/format';
 
@@ -13,6 +14,7 @@ export default async function CatalogPage({ params }: { params: Promise<{ locale
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations('Catalog');
+  const tc = await getTranslations('Checkout');
   const loc = locale === 'ja' ? 'ja' : 'en';
 
   const workshops = await listPublishedWorkshops();
@@ -77,6 +79,16 @@ export default async function CatalogPage({ params }: { params: Promise<{ locale
                               </span>
                             )}
                           </div>
+                        )}
+                        {cohort && price && (
+                          <Link
+                            href={`/checkout/${cohort.id}`}
+                            className="btn pri"
+                            data-testid="enroll-button"
+                            style={{ marginTop: 4 }}
+                          >
+                            {tc('enroll')}
+                          </Link>
                         )}
                       </div>
                     </article>

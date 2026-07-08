@@ -128,7 +128,7 @@ Row-level security: every org-scoped query filters by `organization_id`; partici
 | id · order_id FK · cohort_id FK nullable · seat_pool spec jsonb nullable · qty · unit_price |
 
 ### `payment`
-| id · order_id FK · provider enum(`stripe_card`,`stripe_konbini`,`bank_transfer`) · provider_ref · status · amount · received_at — bank transfers reconciled manually or via webhook; idempotency key on provider_ref |
+| id · order_id FK · provider enum(`airwallex_card`,`airwallex_konbini`,`bank_transfer`) · provider_ref · status · amount · received_at — bank transfers reconciled manually or via webhook; idempotency key on provider_ref |
 
 ### `invoice`
 | id · organization_id FK · order_id FK · number text (sequential, printed) · qualified_invoice_no text (ours, spec §4.2 ⚠) · pdf_storage_key · due_at · status enum(`issued`,`paid`,`overdue`,`void`) |

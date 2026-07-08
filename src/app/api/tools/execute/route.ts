@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireRole, STAFF_ROLES } from '@/server/auth/rbac';
 import { getTool } from '@/server/ai/registry';
-import { proposeAction, proposeAndAutoExecute } from '@/server/ai/ledger';
+import { proposeAction, proposeAndAutoExecute, effectiveTier } from '@/server/ai/ledger';
 import { toErrorResponse } from '@/server/http';
 
 const body = z.object({
@@ -33,7 +33,12 @@ export async function POST(req: NextRequest) {
       idempotencyKey: parsed.data.idempotencyKey,
     };
 
-    if (def.tier === 'auto') {
+    // Resolve the effective tier for THIS input (dynamic tiers included) so a
+    // dynamic tool routes to auto-execute vs. the approval queue correctly.
+    const validated = def.input.safeParse(parsed.data.input);
+    const tier = validated.success ? effectiveTier(def, validated.data) : def.tier;
+
+    if (tier === 'auto') {
       const action = await proposeAndAutoExecute(session, args);
       return NextResponse.json({
         actionId: action.id,

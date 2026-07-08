@@ -92,7 +92,7 @@ The concierge runs with a *separate, narrower* tool set and an anonymous-or-part
 |---|---|---|
 | `catalog.search` | auto | published workshops only |
 | `cohort.availability` | auto | seats left, dates, price |
-| `enrollment.begin_checkout` | auto | hands off to Stripe-hosted checkout; concierge never touches payment data |
+| `enrollment.begin_checkout` | auto | hands off to Airwallex-hosted checkout; concierge never touches payment data |
 | `promo.validate` | auto | can confirm a published code; cannot create or extend discounts |
 | `faq.answer` | auto | RAG over approved content only; must self-identify as AI |
 | `handoff.to_human` | auto | opens a ticket for the owner |

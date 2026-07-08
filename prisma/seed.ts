@@ -114,6 +114,43 @@ async function main() {
   console.info(
     `Imported ${result.imported} workshops (${result.published} published) from content/ideage.`,
   );
+
+  // A bookable, priced cohort so the catalog has something to purchase (M2
+  // checkout target), plus the HAYAWARI20 early-bird promo used in test vectors.
+  const COHORT_ID = '00000000-0000-0000-0000-00000000c001';
+  const discernment = await prisma.workshop.findUnique({
+    where: { slug: 'ai-fluency-discernment' },
+  });
+  if (discernment) {
+    await prisma.cohort.upsert({
+      where: { id: COHORT_ID },
+      update: {},
+      create: {
+        id: COHORT_ID,
+        workshopId: discernment.id,
+        status: 'open',
+        startsAt: new Date('2026-09-08T01:00:00Z'),
+        endsAt: new Date('2026-09-22T03:00:00Z'),
+        capacity: 30,
+        priceJpy: 45000, // yen
+        priceUsd: 31000, // cents → $310.00
+        format: 'online',
+        facilitatorId: OWNER_ID,
+      },
+    });
+  }
+  await prisma.promoCode.upsert({
+    where: { code: 'HAYAWARI20' },
+    update: {},
+    create: {
+      code: 'HAYAWARI20',
+      type: 'early_bird',
+      value: 20, // 20% off
+      validUntil: new Date('2026-12-31T00:00:00Z'),
+      createdBy: 'human',
+    },
+  });
+  console.info('Seeded 1 bookable cohort (¥45,000) + promo HAYAWARI20.');
 }
 
 main()

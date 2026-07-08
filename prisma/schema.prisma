@@ -107,6 +107,83 @@ enum LocalizationState {
   human_reviewed
 }
 
+// ── Commerce & enrollment enums (DATA_MODEL §4–§5) ──────────────────────────
+
+enum OrderKind {
+  individual_enrollment
+  seat_pool
+}
+
+enum OrderStatus {
+  pending
+  awaiting_transfer
+  paid
+  refunded
+  partially_refunded
+  cancelled
+}
+
+enum Currency {
+  JPY
+  USD
+}
+
+// Payment providers. DATA_MODEL §4 names Stripe placeholders; the build uses
+// Airwallex (owner decision), so the concrete providers are airwallex_card /
+// airwallex_konbini / bank_transfer. See DECISIONS note in the commerce migration.
+enum PaymentProvider {
+  airwallex_card
+  airwallex_konbini
+  bank_transfer
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+  refunded
+}
+
+enum InvoiceStatus {
+  issued
+  paid
+  overdue
+  void
+}
+
+enum PromoType {
+  percent
+  fixed
+  early_bird
+  seat_limited
+  referral
+}
+
+enum PromoCreatedBy {
+  human
+  ai_approved
+}
+
+enum SeatPoolStatus {
+  active
+  exhausted
+  expired
+  cancelled
+}
+
+enum EnrollmentSource {
+  self_paid
+  org_seat
+  comp
+}
+
+enum EnrollmentStatus {
+  active
+  completed
+  dropped
+  refunded
+}
+
 // ── Identity & tenancy (DATA_MODEL §2) ───────────────────────────────────────
 
 model Organization {
@@ -120,7 +197,10 @@ model Organization {
   createdAt              DateTime      @default(now()) @map("created_at")
   updatedAt              DateTime      @updatedAt @map("updated_at")
 
-  users User[]
+  users     User[]
+  orders    Order[]
+  invoices  Invoice[]
+  seatPools SeatPool[]
 
   @@map("organization")
 }
@@ -144,6 +224,9 @@ model User {
   approvals    AiAction[]    @relation("approvedBy")
   facilitatedCohorts Cohort[] @relation("facilitator")
   waitlistEntries WaitlistEntry[]
+  orders         Order[]
+  refundsApproved Refund[]
+  enrollments    Enrollment[]
 
   @@index([organizationId])
   @@map("user")
@@ -189,6 +272,7 @@ model AiAction {
   children    AiAction[] @relation("planChildren")
   initiatedBy User?      @relation("initiatedBy", fields: [initiatedById], references: [id])
   approvedBy  User?      @relation("approvedBy", fields: [approvedById], references: [id])
+  refunds     Refund[]
 
   @@index([status])
   @@index([toolName])
@@ -262,6 +346,8 @@ model Cohort {
   facilitator User?           @relation("facilitator", fields: [facilitatorId], references: [id])
   sessions    Session[]
   waitlist    WaitlistEntry[]
+  orderItems  OrderItem[]
+  enrollments Enrollment[]
 
   @@index([workshopId])
   @@index([status])
@@ -352,4 +438,187 @@ model WaitlistEntry {
   @@unique([cohortId, userId])
   @@index([cohortId, status])
   @@map("waitlist_entry")
+}
+
+// ── Commerce (DATA_MODEL §4) ────────────────────────────────────────────────
+
+model Order {
+  id             String      @id @default(uuid()) @db.Uuid
+  buyerUserId    String      @map("buyer_user_id") @db.Uuid
+  // set for B2B seat purchases; null for individual buyers
+  organizationId String?     @map("organization_id") @db.Uuid
+  kind           OrderKind
+  status         OrderStatus @default(pending)
+  currency       Currency
+  // integer minor units; JPY has no minor units. tax = 10% consumption tax for JPY.
+  subtotal       Int
+  discount       Int
+  tax            Int
+  total          Int
+  // one promo code max (PRODUCT_SPEC §4.3)
+  promoCodeId    String?     @map("promo_code_id") @db.Uuid
+  // attribution snapshot at purchase
+  utm            Json?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  buyer        User          @relation(fields: [buyerUserId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  promoCode    PromoCode?    @relation(fields: [promoCodeId], references: [id])
+  items        OrderItem[]
+  payments     Payment[]
+  invoice      Invoice?
+  seatPool     SeatPool?
+
+  @@index([buyerUserId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("order")
+}
+
+model OrderItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  orderId      String   @map("order_id") @db.Uuid
+  // set for individual-enrollment items; null for seat-pool items
+  cohortId     String?  @map("cohort_id") @db.Uuid
+  // seat-pool purchase spec (workshop/level/seat count), nullable
+  seatPoolSpec Json?    @map("seat_pool_spec")
+  qty          Int
+  unitPrice    Int      @map("unit_price")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  cohort Cohort? @relation(fields: [cohortId], references: [id])
+
+  @@index([orderId])
+  @@index([cohortId])
+  @@map("order_item")
+}
+
+model Payment {
+  id          String          @id @default(uuid()) @db.Uuid
+  orderId     String          @map("order_id") @db.Uuid
+  provider    PaymentProvider
+  // idempotency key on provider_ref for webhook safety (DATA_MODEL §8)
+  providerRef String          @unique @map("provider_ref")
+  status      PaymentStatus   @default(pending)
+  amount      Int
+  receivedAt  DateTime?       @map("received_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  order   Order    @relation(fields: [orderId], references: [id])
+  refunds Refund[]
+
+  @@index([orderId])
+  @@map("payment")
+}
+
+model Invoice {
+  id                 String        @id @default(uuid()) @db.Uuid
+  organizationId     String        @map("organization_id") @db.Uuid
+  orderId            String        @unique @map("order_id") @db.Uuid
+  // sequential, printed invoice number
+  number             String        @unique
+  // our 適格請求書 registration number (PRODUCT_SPEC §4.2)
+  qualifiedInvoiceNo String?       @map("qualified_invoice_no")
+  pdfStorageKey      String?       @map("pdf_storage_key")
+  dueAt              DateTime      @map("due_at")
+  status             InvoiceStatus @default(issued)
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id])
+
+  @@index([organizationId])
+  @@map("invoice")
+}
+
+model PromoCode {
+  id             String         @id @default(uuid()) @db.Uuid
+  code           String         @unique
+  type           PromoType
+  value          Int
+  currency       Currency?
+  maxRedemptions Int?           @map("max_redemptions")
+  redeemedCount  Int            @default(0) @map("redeemed_count")
+  validFrom      DateTime?      @map("valid_from")
+  validUntil     DateTime?      @map("valid_until")
+  // nullable list of cohort ids the code is scoped to; empty = unscoped
+  cohortScope    String[]       @map("cohort_scope") @db.Uuid
+  createdBy      PromoCreatedBy @default(human) @map("created_by")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("promo_code")
+}
+
+model SeatPool {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  orderId        String         @unique @map("order_id") @db.Uuid
+  seatsTotal     Int            @map("seats_total")
+  seatsUsed      Int            @default(0) @map("seats_used")
+  validUntil     DateTime       @map("valid_until")
+  status         SeatPoolStatus @default(active)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id])
+  enrollments  Enrollment[]
+
+  @@index([organizationId])
+  @@map("seat_pool")
+}
+
+model Refund {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymentId   String   @map("payment_id") @db.Uuid
+  amount      Int
+  reason      String
+  approvedBy  String?  @map("approved_by") @db.Uuid
+  // ties into autonomy tiers (PRODUCT_SPEC §7)
+  aiActionId  String?  @map("ai_action_id") @db.Uuid
+  providerRef String?  @unique @map("provider_ref")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  payment  Payment   @relation(fields: [paymentId], references: [id])
+  approver User?     @relation(fields: [approvedBy], references: [id])
+  aiAction AiAction? @relation(fields: [aiActionId], references: [id])
+
+  @@index([paymentId])
+  @@map("refund")
+}
+
+// ── Learning & progress (DATA_MODEL §5) ─────────────────────────────────────
+// Minimal enrollment for commerce fulfillment; M4 extends with
+// attendance/quiz/progress.
+
+model Enrollment {
+  id          String           @id @default(uuid()) @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  cohortId    String           @map("cohort_id") @db.Uuid
+  source      EnrollmentSource
+  // consumes one seat when set
+  seatPoolId  String?          @map("seat_pool_id") @db.Uuid
+  status      EnrollmentStatus @default(active)
+  // set when completion rule satisfied
+  completedAt DateTime?        @map("completed_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id])
+  cohort   Cohort    @relation(fields: [cohortId], references: [id])
+  seatPool SeatPool? @relation(fields: [seatPoolId], references: [id])
+
+  @@unique([userId, cohortId])
+  @@index([cohortId])
+  @@index([seatPoolId])
+  @@map("enrollment")
 }
