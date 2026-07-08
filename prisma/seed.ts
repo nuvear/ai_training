@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { PrismaClient } from '../src/generated/prisma/index.js';
+import { importContent } from '../src/server/content/importer';
 
 // Deterministic seed for local dev, tests, and e2e. Idempotent (upserts on
 // fixed IDs). Creates the owner + staff (global operators) and two organizations
@@ -107,6 +108,12 @@ async function main() {
   }
 
   console.info(`Seeded ${users.length} users across 2 organizations.`);
+
+  // Import the IDEAGE content library (frontmatter → catalog).
+  const result = await importContent(prisma);
+  console.info(
+    `Imported ${result.imported} workshops (${result.published} published) from content/ideage.`,
+  );
 }
 
 main()

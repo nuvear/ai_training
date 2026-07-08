@@ -59,6 +59,54 @@ enum AiActionStatus {
   failed
 }
 
+// ── Workshop domain enums (DATA_MODEL §3 / PRODUCT_SPEC §3) ──────────────────
+
+enum WorkshopLevel {
+  intro
+  intermediate
+  advanced
+}
+
+enum WorkshopStatus {
+  draft
+  published
+  archived
+}
+
+enum CohortStatus {
+  open
+  full
+  running
+  completed
+  cancelled
+}
+
+enum CohortFormat {
+  online
+  in_person
+  hybrid
+}
+
+enum ContentKind {
+  slide
+  doc
+  video
+  prework
+}
+
+enum WaitlistStatus {
+  waiting
+  offered
+  confirmed
+  expired
+}
+
+// Per-locale localization review state (DATA_MODEL §3 workshop.localization_review).
+enum LocalizationState {
+  ai_localized
+  human_reviewed
+}
+
 // ── Identity & tenancy (DATA_MODEL §2) ───────────────────────────────────────
 
 model Organization {
@@ -94,6 +142,8 @@ model User {
   organization Organization? @relation(fields: [organizationId], references: [id])
   aiActions    AiAction[]    @relation("initiatedBy")
   approvals    AiAction[]    @relation("approvedBy")
+  facilitatedCohorts Cohort[] @relation("facilitator")
+  waitlistEntries WaitlistEntry[]
 
   @@index([organizationId])
   @@map("user")
@@ -161,4 +211,145 @@ model Embedding {
   @@unique([entityType, entityId, locale])
   @@index([entityType])
   @@map("embedding")
+}
+
+// ── Workshop domain (DATA_MODEL §3) ─────────────────────────────────────────
+
+model Workshop {
+  id     String         @id @default(uuid()) @db.Uuid
+  slug   String         @unique
+  // (i18n) { en, ja } each
+  title       Json
+  summary     Json
+  description Json       @default("{}")
+  outcomes    Json       @default("{}")
+  level  WorkshopLevel  @default(intro)
+  status WorkshopStatus @default(draft)
+  // completion overrides, e.g. { attendance_pct: 80, quiz_pass_pct: 70 }
+  completionRule Json   @default("{\"attendance_pct\":80,\"quiz_pass_pct\":70}") @map("completion_rule")
+  // per-locale review state, e.g. { en: "human_reviewed", ja: "ai_localized" }
+  localizationReview Json @default("{}") @map("localization_review")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  cohorts      Cohort[]
+  contentItems ContentItem[]
+  skills       WorkshopSkill[]
+
+  @@index([status])
+  @@map("workshop")
+}
+
+model Cohort {
+  id         String       @id @default(uuid()) @db.Uuid
+  workshopId String       @map("workshop_id") @db.Uuid
+  status     CohortStatus @default(open)
+  startsAt   DateTime     @map("starts_at")
+  endsAt     DateTime     @map("ends_at")
+  capacity   Int
+  // integer minor units; JPY has no minor units (store yen as-is)
+  priceJpy   Int?         @map("price_jpy")
+  priceUsd   Int?         @map("price_usd")
+  format     CohortFormat @default(online)
+  // (i18n) address or platform label, nullable
+  venue      Json?
+  meetingUrl String?      @map("meeting_url")
+  facilitatorId String?   @map("facilitator_id") @db.Uuid
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  workshop    Workshop        @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  facilitator User?           @relation("facilitator", fields: [facilitatorId], references: [id])
+  sessions    Session[]
+  waitlist    WaitlistEntry[]
+
+  @@index([workshopId])
+  @@index([status])
+  @@map("cohort")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  cohortId  String   @map("cohort_id") @db.Uuid
+  seq       Int
+  startsAt  DateTime @map("starts_at")
+  endsAt    DateTime @map("ends_at")
+  // (i18n) agenda { en, ja }
+  agenda    Json     @default("{}")
+  // array of refs to content_item ids/keys
+  materials Json     @default("[]")
+  checkinToken String? @map("checkin_token")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, seq])
+  @@index([cohortId])
+  @@map("session")
+}
+
+model ContentItem {
+  id         String      @id @default(uuid()) @db.Uuid
+  workshopId String      @map("workshop_id") @db.Uuid
+  kind       ContentKind
+  // (i18n) title { en, ja }
+  title      Json
+  storageKey String?     @map("storage_key")
+  // per-locale variant metadata (e.g. resolved markdown paths)
+  localeVariants Json    @default("{}") @map("locale_variants")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+
+  @@index([workshopId])
+  @@map("content_item")
+}
+
+model Skill {
+  id   String @id @default(uuid()) @db.Uuid
+  slug String @unique
+  // (i18n) name { en, ja }
+  name Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  workshops WorkshopSkill[]
+
+  @@map("skill")
+}
+
+model WorkshopSkill {
+  workshopId String  @map("workshop_id") @db.Uuid
+  skillId    String  @map("skill_id") @db.Uuid
+  weight     Decimal @default(1) @db.Decimal(4, 2)
+
+  workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  skill    Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([workshopId, skillId])
+  @@index([skillId])
+  @@map("workshop_skill")
+}
+
+model WaitlistEntry {
+  id         String         @id @default(uuid()) @db.Uuid
+  cohortId   String         @map("cohort_id") @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  position   Int
+  aiAttendScore Decimal?    @map("ai_attend_score") @db.Decimal(5, 4)
+  promotedAt DateTime?      @map("promoted_at")
+  // 24h confirm window set when an offer is made (PRODUCT_SPEC §3)
+  expiresAt  DateTime?      @map("expires_at")
+  status     WaitlistStatus @default(waiting)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, userId])
+  @@index([cohortId, status])
+  @@map("waitlist_entry")
 }

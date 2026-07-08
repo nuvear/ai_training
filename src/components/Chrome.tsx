@@ -4,7 +4,7 @@ import { getSession } from '@/server/auth/session';
 import { STAFF_ROLES } from '@/server/auth/rbac';
 import { LocaleSwitcher } from './LocaleSwitcher';
 
-type Tab = 'home' | 'copilot' | 'approvals';
+type Tab = 'home' | 'catalog' | 'copilot' | 'approvals' | 'admin';
 
 // Top chrome: wordmark (§2 "OS" in accent), tabs, locale switcher, sign in/out.
 // Staff-only tabs appear only for owner/staff sessions.
@@ -23,8 +23,14 @@ export async function Chrome({ locale, active }: { locale: string; active: Tab }
         <Link href="/" className={`tab ${active === 'home' ? 'on' : ''}`}>
           {t('home')}
         </Link>
+        <Link href="/catalog" className={`tab ${active === 'catalog' ? 'on' : ''}`}>
+          {t('catalog')}
+        </Link>
         {isStaff && (
           <>
+            <Link href="/admin/workshops" className={`tab ${active === 'admin' ? 'on' : ''}`}>
+              {t('admin')}
+            </Link>
             <Link href="/copilot" className={`tab ${active === 'copilot' ? 'on' : ''}`}>
               {t('copilot')}
             </Link>

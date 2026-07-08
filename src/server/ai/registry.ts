@@ -1,18 +1,41 @@
 import type { ToolDefinition, Surface, Tier } from './types';
 import { workshopPing } from './tools/workshop-ping';
+import {
+  workshopCreate,
+  workshopUpdate,
+  workshopPublish,
+  workshopArchive,
+} from './tools/workshops';
+import { contentLocalize, contentMarkReviewed, contentGenerate } from './tools/content';
+import { cohortCreate, cohortClone, cohortCancel } from './tools/cohorts';
+import { sessionUpdateAgenda } from './tools/sessions';
+import { waitlistPromote } from './tools/waitlist';
 
 // The server-side tool registry: name → definition. This is the authority for
 // which tools exist, their tier, and which surfaces may call them. Agents and
 // UI both resolve tools here; there is no other path to execution.
 const REGISTRY = new Map<string, ToolDefinition>();
 
-function register(def: ToolDefinition): void {
+function register<I, O>(def: ToolDefinition<I, O>): void {
   if (REGISTRY.has(def.name)) throw new Error(`Duplicate tool: ${def.name}`);
-  REGISTRY.set(def.name, def);
+  REGISTRY.set(def.name, def as unknown as ToolDefinition);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-register(workshopPing as ToolDefinition<any, any>);
+register(workshopPing);
+// M1 — workshop lifecycle (COPILOT_TOOLS §1)
+register(workshopCreate);
+register(workshopUpdate);
+register(workshopPublish);
+register(workshopArchive);
+register(cohortCreate);
+register(cohortClone);
+register(cohortCancel);
+register(sessionUpdateAgenda);
+register(waitlistPromote);
+// M1 — content & localization (COPILOT_TOOLS §2)
+register(contentGenerate);
+register(contentLocalize);
+register(contentMarkReviewed);
 
 export class ToolError extends Error {
   constructor(

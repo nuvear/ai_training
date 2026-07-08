@@ -21,7 +21,11 @@ export interface ToolDefinition<I = unknown, O = unknown> {
   /** Surfaces permitted to call this tool. The public concierge is limited to a
    * narrow subset (invariant 7). */
   surfaces: Surface[];
-  input: z.ZodType<I>;
+  // Third type param is `any` so schemas with .default()/.refine() (whose input
+  // type differs from their output) still satisfy the contract — only the parsed
+  // OUTPUT type `I` is load-bearing.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  input: z.ZodType<I, z.ZodTypeDef, any>;
   handler: (ctx: ToolContext, input: I) => Promise<O>;
   /** Bilingual one-line description shown in the plan preview. */
   summarize: (input: I) => BilingualText;
