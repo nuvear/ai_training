@@ -1,0 +1,22 @@
+# Dev database for WorkshopOS: Postgres 16 with pgvector already compiled in.
+# `pnpm db:up` starts this; DATABASE_URL / DIRECT_URL in .env point at it.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: workshopos-db
+    environment:
+      POSTGRES_USER: workshopos
+      POSTGRES_PASSWORD: workshopos
+      POSTGRES_DB: workshopos
+    ports:
+      - '5433:5432'
+    volumes:
+      - workshopos-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U workshopos -d workshopos']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  workshopos-db-data:

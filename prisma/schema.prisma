@@ -1,0 +1,903 @@
+// WorkshopOS — Prisma schema.
+// M0 implements DATA_MODEL.md §2 (identity & tenancy) and §7 (AI operating layer),
+// plus the auth support table. Later milestones add the workshop/commerce/learning
+// domains. Bilingual content fields are JSONB { en, ja }; money (later) is integer
+// minor units + currency. IDs are UUIDs; every table carries created_at/updated_at.
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector, citext]
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  owner
+  staff
+  org_admin
+  participant
+}
+
+enum Locale {
+  en
+  ja
+}
+
+enum BillingMethod {
+  card
+  invoice_transfer
+}
+
+enum AiSurface {
+  copilot
+  concierge
+  scheduler
+}
+
+// Autonomy tiers (PRODUCT_SPEC §7 / COPILOT_TOOLS §cross-cutting).
+// `owner_only` is the ledger spelling of the `owner` tool tier.
+enum AiTier {
+  auto
+  approve
+  owner_only
+}
+
+enum AiActionStatus {
+  proposed
+  approved
+  executed
+  rejected
+  rolled_back
+  failed
+}
+
+// ── Workshop domain enums (DATA_MODEL §3 / PRODUCT_SPEC §3) ──────────────────
+
+enum WorkshopLevel {
+  intro
+  intermediate
+  advanced
+}
+
+enum WorkshopStatus {
+  draft
+  published
+  archived
+}
+
+enum CohortStatus {
+  open
+  full
+  running
+  completed
+  cancelled
+}
+
+enum CohortFormat {
+  online
+  in_person
+  hybrid
+}
+
+enum ContentKind {
+  slide
+  doc
+  video
+  prework
+}
+
+enum WaitlistStatus {
+  waiting
+  offered
+  confirmed
+  expired
+}
+
+// Per-locale localization review state (DATA_MODEL §3 workshop.localization_review).
+enum LocalizationState {
+  ai_localized
+  human_reviewed
+}
+
+// ── Commerce & enrollment enums (DATA_MODEL §4–§5) ──────────────────────────
+
+enum OrderKind {
+  individual_enrollment
+  seat_pool
+}
+
+enum OrderStatus {
+  pending
+  awaiting_transfer
+  paid
+  refunded
+  partially_refunded
+  cancelled
+}
+
+enum Currency {
+  JPY
+  USD
+}
+
+// Payment providers. DATA_MODEL §4 names Stripe placeholders; the build uses
+// Airwallex (owner decision), so the concrete providers are airwallex_card /
+// airwallex_konbini / bank_transfer. See DECISIONS note in the commerce migration.
+enum PaymentProvider {
+  airwallex_card
+  airwallex_konbini
+  bank_transfer
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+  refunded
+}
+
+enum InvoiceStatus {
+  issued
+  paid
+  overdue
+  void
+}
+
+enum PromoType {
+  percent
+  fixed
+  early_bird
+  seat_limited
+  referral
+}
+
+enum PromoCreatedBy {
+  human
+  ai_approved
+}
+
+enum SeatPoolStatus {
+  active
+  exhausted
+  expired
+  cancelled
+}
+
+enum EnrollmentSource {
+  self_paid
+  org_seat
+  comp
+}
+
+enum EnrollmentStatus {
+  active
+  completed
+  dropped
+  refunded
+}
+
+// ── Learning & progress enums (DATA_MODEL §5) ───────────────────────────────
+
+enum AttendanceStatus {
+  present
+  absent
+  excused
+}
+
+enum AttendanceMethod {
+  facilitator
+  self_checkin
+  auto_join
+}
+
+// AI-generated quizzes are staff-reviewed before publish.
+enum QuizStatus {
+  ai_draft
+  published
+}
+
+enum ProgressEventKind {
+  prework_done
+  session_attended
+  quiz_passed
+  nudge_sent
+  completed
+}
+
+// ── Marketing enums (DATA_MODEL §6) ─────────────────────────────────────────
+
+enum LandingStatus {
+  ai_draft
+  approved
+  live
+  retired
+}
+
+enum CampaignKind {
+  announce
+  reminder
+  last_seats
+}
+
+enum CampaignStatus {
+  draft
+  approved
+  running
+  done
+}
+
+// ── Identity & tenancy (DATA_MODEL §2) ───────────────────────────────────────
+
+model Organization {
+  id                     String        @id @default(uuid()) @db.Uuid
+  // (i18n) legal + display name: { en, ja }
+  name                   Json
+  billingEmail           String        @map("billing_email")
+  billingMethod          BillingMethod @default(card) @map("billing_method")
+  invoiceRegistrationNo  String?       @map("invoice_registration_no")
+  locale                 Locale        @default(ja)
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
+
+  users     User[]
+  orders    Order[]
+  invoices  Invoice[]
+  seatPools SeatPool[]
+
+  @@map("organization")
+}
+
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  // stored lowercased; unique + a lower() index make it effectively case-insensitive
+  email          String   @unique
+  // (i18n-ish) { display, family, given } — supports JA family-name-first rendering
+  name           Json     @default("{}")
+  role           Role     @default(participant)
+  organizationId String?  @map("organization_id") @db.Uuid
+  locale         Locale   @default(ja)
+  timezone       String   @default("Asia/Tokyo")
+  notificationPrefs Json  @default("{}") @map("notification_prefs")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  aiActions    AiAction[]    @relation("initiatedBy")
+  approvals    AiAction[]    @relation("approvedBy")
+  facilitatedCohorts Cohort[] @relation("facilitator")
+  waitlistEntries WaitlistEntry[]
+  orders         Order[]
+  refundsApproved Refund[]
+  enrollments    Enrollment[]
+  feedback       Feedback[]
+
+  @@index([organizationId])
+  @@map("user")
+}
+
+// ── Auth: email magic-link tokens ────────────────────────────────────────────
+
+model MagicLinkToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  email      String
+  // sha-256 of the token that travels in the link; the raw token is never stored
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("magic_link_token")
+}
+
+// ── AI operating layer (DATA_MODEL §7) ───────────────────────────────────────
+
+// The Ledger — append-only, never deleted. Every copilot/concierge/scheduler
+// tool call writes a row here BEFORE execution.
+model AiAction {
+  id          String         @id @default(uuid()) @db.Uuid
+  parentId    String?        @map("parent_id") @db.Uuid
+  initiatedById String?      @map("initiated_by") @db.Uuid
+  surface     AiSurface
+  toolName    String         @map("tool_name")
+  tier        AiTier
+  input       Json
+  output      Json?
+  status      AiActionStatus @default(proposed)
+  approvedById String?       @map("approved_by") @db.Uuid
+  reversalOf  String?        @map("reversal_of") @db.Uuid
+  // idempotency: a client-generated key makes tool retries safe
+  idempotencyKey String?     @unique @map("idempotency_key")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  parent      AiAction?  @relation("planChildren", fields: [parentId], references: [id])
+  children    AiAction[] @relation("planChildren")
+  initiatedBy User?      @relation("initiatedBy", fields: [initiatedById], references: [id])
+  approvedBy  User?      @relation("approvedBy", fields: [approvedById], references: [id])
+  refunds     Refund[]
+
+  @@index([status])
+  @@index([toolName])
+  @@index([parentId])
+  @@map("ai_action")
+}
+
+// pgvector-backed semantic search index (DATA_MODEL §7). The vector column is a
+// raw pgvector type; it is written via SQL, not Prisma Client, so it is typed
+// Unsupported here.
+model Embedding {
+  id         String                 @id @default(uuid()) @db.Uuid
+  entityType String                 @map("entity_type")
+  entityId   String                 @map("entity_id") @db.Uuid
+  locale     Locale
+  vector     Unsupported("vector(1536)")
+  textHash   String                 @map("text_hash")
+  createdAt  DateTime               @default(now()) @map("created_at")
+
+  @@unique([entityType, entityId, locale])
+  @@index([entityType])
+  @@map("embedding")
+}
+
+// ── Workshop domain (DATA_MODEL §3) ─────────────────────────────────────────
+
+model Workshop {
+  id     String         @id @default(uuid()) @db.Uuid
+  slug   String         @unique
+  // (i18n) { en, ja } each
+  title       Json
+  summary     Json
+  description Json       @default("{}")
+  outcomes    Json       @default("{}")
+  level  WorkshopLevel  @default(intro)
+  status WorkshopStatus @default(draft)
+  // completion overrides, e.g. { attendance_pct: 80, quiz_pass_pct: 70 }
+  completionRule Json   @default("{\"attendance_pct\":80,\"quiz_pass_pct\":70}") @map("completion_rule")
+  // per-locale review state, e.g. { en: "human_reviewed", ja: "ai_localized" }
+  localizationReview Json @default("{}") @map("localization_review")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  cohorts      Cohort[]
+  contentItems ContentItem[]
+  skills       WorkshopSkill[]
+  quizzes      Quiz[]
+  landingPages LandingPage[]
+
+  @@index([status])
+  @@map("workshop")
+}
+
+model Cohort {
+  id         String       @id @default(uuid()) @db.Uuid
+  workshopId String       @map("workshop_id") @db.Uuid
+  status     CohortStatus @default(open)
+  startsAt   DateTime     @map("starts_at")
+  endsAt     DateTime     @map("ends_at")
+  capacity   Int
+  // integer minor units; JPY has no minor units (store yen as-is)
+  priceJpy   Int?         @map("price_jpy")
+  priceUsd   Int?         @map("price_usd")
+  format     CohortFormat @default(online)
+  // (i18n) address or platform label, nullable
+  venue      Json?
+  meetingUrl String?      @map("meeting_url")
+  facilitatorId String?   @map("facilitator_id") @db.Uuid
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  workshop    Workshop        @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  facilitator User?           @relation("facilitator", fields: [facilitatorId], references: [id])
+  sessions    Session[]
+  waitlist    WaitlistEntry[]
+  orderItems  OrderItem[]
+  enrollments Enrollment[]
+  feedback    Feedback[]
+  campaigns   Campaign[]
+
+  @@index([workshopId])
+  @@index([status])
+  @@map("cohort")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  cohortId  String   @map("cohort_id") @db.Uuid
+  seq       Int
+  startsAt  DateTime @map("starts_at")
+  endsAt    DateTime @map("ends_at")
+  // (i18n) agenda { en, ja }
+  agenda    Json     @default("{}")
+  // array of refs to content_item ids/keys
+  materials Json     @default("[]")
+  checkinToken String? @map("checkin_token")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cohort     Cohort       @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  attendance Attendance[]
+
+  @@unique([cohortId, seq])
+  @@index([cohortId])
+  @@map("session")
+}
+
+model ContentItem {
+  id         String      @id @default(uuid()) @db.Uuid
+  workshopId String      @map("workshop_id") @db.Uuid
+  kind       ContentKind
+  // (i18n) title { en, ja }
+  title      Json
+  storageKey String?     @map("storage_key")
+  // per-locale variant metadata (e.g. resolved markdown paths)
+  localeVariants Json    @default("{}") @map("locale_variants")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+
+  @@index([workshopId])
+  @@map("content_item")
+}
+
+model Skill {
+  id   String @id @default(uuid()) @db.Uuid
+  slug String @unique
+  // (i18n) name { en, ja }
+  name Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  workshops WorkshopSkill[]
+
+  @@map("skill")
+}
+
+model WorkshopSkill {
+  workshopId String  @map("workshop_id") @db.Uuid
+  skillId    String  @map("skill_id") @db.Uuid
+  weight     Decimal @default(1) @db.Decimal(4, 2)
+
+  workshop Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  skill    Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([workshopId, skillId])
+  @@index([skillId])
+  @@map("workshop_skill")
+}
+
+model WaitlistEntry {
+  id         String         @id @default(uuid()) @db.Uuid
+  cohortId   String         @map("cohort_id") @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  position   Int
+  aiAttendScore Decimal?    @map("ai_attend_score") @db.Decimal(5, 4)
+  promotedAt DateTime?      @map("promoted_at")
+  // 24h confirm window set when an offer is made (PRODUCT_SPEC §3)
+  expiresAt  DateTime?      @map("expires_at")
+  status     WaitlistStatus @default(waiting)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, userId])
+  @@index([cohortId, status])
+  @@map("waitlist_entry")
+}
+
+// ── Commerce (DATA_MODEL §4) ────────────────────────────────────────────────
+
+model Order {
+  id             String      @id @default(uuid()) @db.Uuid
+  buyerUserId    String      @map("buyer_user_id") @db.Uuid
+  // set for B2B seat purchases; null for individual buyers
+  organizationId String?     @map("organization_id") @db.Uuid
+  kind           OrderKind
+  status         OrderStatus @default(pending)
+  currency       Currency
+  // integer minor units; JPY has no minor units. tax = 10% consumption tax for JPY.
+  subtotal       Int
+  discount       Int
+  tax            Int
+  total          Int
+  // one promo code max (PRODUCT_SPEC §4.3)
+  promoCodeId    String?     @map("promo_code_id") @db.Uuid
+  // attribution snapshot at purchase
+  utm            Json?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  buyer        User          @relation(fields: [buyerUserId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  promoCode    PromoCode?    @relation(fields: [promoCodeId], references: [id])
+  items        OrderItem[]
+  payments     Payment[]
+  invoice      Invoice?
+  seatPool     SeatPool?
+
+  @@index([buyerUserId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("order")
+}
+
+model OrderItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  orderId      String   @map("order_id") @db.Uuid
+  // set for individual-enrollment items; null for seat-pool items
+  cohortId     String?  @map("cohort_id") @db.Uuid
+  // seat-pool purchase spec (workshop/level/seat count), nullable
+  seatPoolSpec Json?    @map("seat_pool_spec")
+  qty          Int
+  unitPrice    Int      @map("unit_price")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  cohort Cohort? @relation(fields: [cohortId], references: [id])
+
+  @@index([orderId])
+  @@index([cohortId])
+  @@map("order_item")
+}
+
+model Payment {
+  id          String          @id @default(uuid()) @db.Uuid
+  orderId     String          @map("order_id") @db.Uuid
+  provider    PaymentProvider
+  // idempotency key on provider_ref for webhook safety (DATA_MODEL §8)
+  providerRef String          @unique @map("provider_ref")
+  status      PaymentStatus   @default(pending)
+  amount      Int
+  receivedAt  DateTime?       @map("received_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  order   Order    @relation(fields: [orderId], references: [id])
+  refunds Refund[]
+
+  @@index([orderId])
+  @@map("payment")
+}
+
+model Invoice {
+  id                 String        @id @default(uuid()) @db.Uuid
+  organizationId     String        @map("organization_id") @db.Uuid
+  orderId            String        @unique @map("order_id") @db.Uuid
+  // sequential, printed invoice number
+  number             String        @unique
+  // our 適格請求書 registration number (PRODUCT_SPEC §4.2)
+  qualifiedInvoiceNo String?       @map("qualified_invoice_no")
+  pdfStorageKey      String?       @map("pdf_storage_key")
+  dueAt              DateTime      @map("due_at")
+  status             InvoiceStatus @default(issued)
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id])
+
+  @@index([organizationId])
+  @@map("invoice")
+}
+
+model PromoCode {
+  id             String         @id @default(uuid()) @db.Uuid
+  code           String         @unique
+  type           PromoType
+  value          Int
+  currency       Currency?
+  maxRedemptions Int?           @map("max_redemptions")
+  redeemedCount  Int            @default(0) @map("redeemed_count")
+  validFrom      DateTime?      @map("valid_from")
+  validUntil     DateTime?      @map("valid_until")
+  // nullable list of cohort ids the code is scoped to; empty = unscoped
+  cohortScope    String[]       @map("cohort_scope") @db.Uuid
+  createdBy      PromoCreatedBy @default(human) @map("created_by")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("promo_code")
+}
+
+model SeatPool {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  orderId        String         @unique @map("order_id") @db.Uuid
+  seatsTotal     Int            @map("seats_total")
+  seatsUsed      Int            @default(0) @map("seats_used")
+  validUntil     DateTime       @map("valid_until")
+  status         SeatPoolStatus @default(active)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id])
+  enrollments  Enrollment[]
+
+  @@index([organizationId])
+  @@map("seat_pool")
+}
+
+model Refund {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymentId   String   @map("payment_id") @db.Uuid
+  amount      Int
+  reason      String
+  approvedBy  String?  @map("approved_by") @db.Uuid
+  // ties into autonomy tiers (PRODUCT_SPEC §7)
+  aiActionId  String?  @map("ai_action_id") @db.Uuid
+  providerRef String?  @unique @map("provider_ref")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  payment  Payment   @relation(fields: [paymentId], references: [id])
+  approver User?     @relation(fields: [approvedBy], references: [id])
+  aiAction AiAction? @relation(fields: [aiActionId], references: [id])
+
+  @@index([paymentId])
+  @@map("refund")
+}
+
+// ── Learning & progress (DATA_MODEL §5) ─────────────────────────────────────
+// Minimal enrollment for commerce fulfillment; M4 extends with
+// attendance/quiz/progress.
+
+model Enrollment {
+  id          String           @id @default(uuid()) @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  cohortId    String           @map("cohort_id") @db.Uuid
+  source      EnrollmentSource
+  // consumes one seat when set
+  seatPoolId  String?          @map("seat_pool_id") @db.Uuid
+  status      EnrollmentStatus @default(active)
+  // set when completion rule satisfied
+  completedAt DateTime?        @map("completed_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  user          User           @relation(fields: [userId], references: [id])
+  cohort        Cohort         @relation(fields: [cohortId], references: [id])
+  seatPool      SeatPool?      @relation(fields: [seatPoolId], references: [id])
+  attendance    Attendance[]
+  quizAttempts  QuizAttempt[]
+  certificate   Certificate?
+  progressEvents ProgressEvent[]
+
+  @@unique([userId, cohortId])
+  @@index([cohortId])
+  @@index([seatPoolId])
+  @@map("enrollment")
+}
+
+// Post-cohort reflections (DATA_MODEL §5). ratings are aggregatable; text_body is
+// the free-text reflection that the M3 privacy boundary (PRODUCT_SPEC §2) must
+// exclude from org-admin views. That boundary is COLUMN-level (org admins may see
+// aggregate ratings but never text_body), which RLS cannot express, so feedback
+// carries NO row-level security — like payment/promo_code in M2 — and the
+// exclusion is enforced in the query/service layer (a dedicated org-progress read
+// that never selects text_body). Owner/staff and server code read it directly.
+model Feedback {
+  id          String   @id @default(uuid()) @db.Uuid
+  cohortId    String   @map("cohort_id") @db.Uuid
+  // nullable: anonymous feedback is allowed
+  userId      String?  @map("user_id") @db.Uuid
+  // e.g. { overall: 5, pace: 4 }
+  ratings     Json     @default("{}")
+  // FREE-TEXT REFLECTION — never selected into org-admin views (M3)
+  textBody    String?  @map("text_body")
+  language    Locale
+  aiTheme     String?  @map("ai_theme")
+  aiSentiment Decimal? @db.Decimal(4, 3) @map("ai_sentiment")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([cohortId])
+  @@map("feedback")
+}
+
+// Per-session attendance record (DATA_MODEL §5). One row per enrollment/session.
+model Attendance {
+  id           String           @id @default(uuid()) @db.Uuid
+  enrollmentId String           @map("enrollment_id") @db.Uuid
+  sessionId    String           @map("session_id") @db.Uuid
+  status       AttendanceStatus
+  method       AttendanceMethod
+  recordedAt   DateTime         @default(now()) @map("recorded_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  session    Session    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, sessionId])
+  @@index([sessionId])
+  @@map("attendance")
+}
+
+// AI-generated quiz, staff-reviewed before publish (DATA_MODEL §5).
+model Quiz {
+  id         String     @id @default(uuid()) @db.Uuid
+  workshopId String     @map("workshop_id") @db.Uuid
+  // (i18n) title { en, ja }
+  title      Json
+  passPct    Int        @default(70) @map("pass_pct")
+  status     QuizStatus @default(ai_draft)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  workshop  Workshop       @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([workshopId])
+  @@map("quiz")
+}
+
+model QuizQuestion {
+  id          String   @id @default(uuid()) @db.Uuid
+  quizId      String   @map("quiz_id") @db.Uuid
+  seq         Int
+  // (i18n) prompt { en, ja }
+  prompt      Json
+  // (i18n) options, e.g. { "a": { en, ja }, "b": { en, ja }, ... }
+  options     Json
+  correctKey  String   @map("correct_key")
+  // (i18n) explanation { en, ja }
+  explanation Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, seq])
+  @@map("quiz_question")
+}
+
+model QuizAttempt {
+  id           String   @id @default(uuid()) @db.Uuid
+  enrollmentId String   @map("enrollment_id") @db.Uuid
+  quizId       String   @map("quiz_id") @db.Uuid
+  answers      Json
+  scorePct     Int      @map("score_pct")
+  passed       Boolean
+  attemptedAt  DateTime @default(now()) @map("attempted_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  quiz       Quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId])
+  @@map("quiz_attempt")
+}
+
+// One certificate per completed enrollment; verify_code backs the public URL.
+model Certificate {
+  id              String   @id @default(uuid()) @db.Uuid
+  enrollmentId    String   @unique @map("enrollment_id") @db.Uuid
+  verifyCode      String   @unique @map("verify_code")
+  issuedAt        DateTime @default(now()) @map("issued_at")
+  pdfStorageKeyEn String?  @map("pdf_storage_key_en")
+  pdfStorageKeyJa String?  @map("pdf_storage_key_ja")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@map("certificate")
+}
+
+// Append-only progress stream (DATA_MODEL §5). Feeds the skill graph, predictive
+// ops, and narrative analytics; never deleted (guarded like ai_action). No
+// updated_at — rows are immutable once written.
+model ProgressEvent {
+  id           String            @id @default(uuid()) @db.Uuid
+  enrollmentId String            @map("enrollment_id") @db.Uuid
+  kind         ProgressEventKind
+  payload      Json              @default("{}")
+  at           DateTime          @default(now())
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId])
+  @@map("progress_event")
+}
+
+// ── Marketing (DATA_MODEL §6) ───────────────────────────────────────────────
+// Global business data (like workshop): NO row-level security, no org scoping.
+// The app role is granted on new tables via ALTER DEFAULT PRIVILEGES in the
+// rls_grants_guards migration.
+
+// A/B-testable landing page per workshop/locale/variant. content holds the
+// structured blocks (hero/outline/voices/details/flow/cta); traffic_weight is
+// updated by A/B reallocation.
+model LandingPage {
+  id           String        @id @default(uuid()) @db.Uuid
+  workshopId   String        @map("workshop_id") @db.Uuid
+  locale       Locale
+  variant      String        @db.Char(1)
+  // structured blocks: hero/outline/voices/details/flow/cta
+  content      Json          @default("{}")
+  status       LandingStatus @default(ai_draft)
+  trafficWeight Decimal      @default(0.5) @db.Decimal(4, 3) @map("traffic_weight")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  workshop Workshop           @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  visits   AttributionVisit[]
+
+  @@index([workshopId])
+  @@map("landing_page")
+}
+
+// Email campaign tied to a cohort. sequence is an i18n email sequence — an array
+// of { subject: { en, ja }, body: { en, ja }, offsetDays }.
+model Campaign {
+  id          String         @id @default(uuid()) @db.Uuid
+  cohortId    String         @map("cohort_id") @db.Uuid
+  kind        CampaignKind
+  // (i18n) email sequence: [{ subject: { en, ja }, body: { en, ja }, offsetDays }]
+  sequence    Json           @default("[]")
+  status      CampaignStatus @default(draft)
+  scheduledAt DateTime?      @map("scheduled_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  cohort Cohort         @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  sends  CampaignSend[]
+
+  @@index([cohortId])
+  @@map("campaign")
+}
+
+// Per-recipient send record with delivery/engagement timestamps.
+model CampaignSend {
+  id         String    @id @default(uuid()) @db.Uuid
+  campaignId String    @map("campaign_id") @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  email      String
+  locale     Locale
+  sentAt     DateTime? @map("sent_at")
+  openedAt   DateTime? @map("opened_at")
+  clickedAt  DateTime? @map("clicked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_send")
+}
+
+// Attribution visit joined to order.utm for funnel reporting. landing_page_id is
+// nullable and set null on landing-page deletion so history survives.
+model AttributionVisit {
+  id            String   @id @default(uuid()) @db.Uuid
+  sessionKey    String   @map("session_key")
+  utm           Json     @default("{}")
+  referrer      String?
+  landingPageId String?  @map("landing_page_id") @db.Uuid
+  at            DateTime @default(now())
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  landingPage LandingPage? @relation(fields: [landingPageId], references: [id], onDelete: SetNull)
+
+  @@index([sessionKey])
+  @@map("attribution_visit")
+}

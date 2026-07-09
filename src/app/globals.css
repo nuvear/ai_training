@@ -1,0 +1,442 @@
+/* WorkshopOS design tokens — DESIGN_GUIDELINES §3–§6, matching design/mock-screens.html.
+   Token variables only; no new hues; two registers share these tokens. */
+
+:root {
+  /* §3 Color — Japanese traditional palette, one accent (藍) */
+  --paper: #f8f8f5; /* 生成り */
+  --surface: #ffffff; /* 白 */
+  --ink: #20242b; /* 墨 */
+  --ink-soft: #6b7076; /* 鈍色 */
+  --ai-600: #165e83; /* 藍色 — brand accent */
+  --ai-700: #114a68; /* 紺藍 — hover/pressed */
+  --ai-100: #e3eef3; /* 藍白 — tint */
+  --shu: #b8432f; /* 朱 — owner/destructive/error */
+  --matsu: #3e7a5e; /* 松葉 — success */
+  --kin: #a8842c; /* 黄金鈍 — pending/approval */
+  --line: #e3e2dc; /* hairline */
+  --line-strong: #c9c8c0; /* emphasized rule */
+
+  /* §4 Type */
+  --sans: 'IBM Plex Sans JP', -apple-system, 'Hiragino Sans', sans-serif;
+  --mincho: 'Shippori Mincho', 'Hiragino Mincho ProN', serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Bilingual line-height tokens, switched by :lang() below (§4) */
+  --lh-en: 1.7;
+  --lh-ja: 1.8;
+  --lh: var(--lh-en);
+
+  /* §6 Spacing — 8px base */
+  --sp-1: 8px;
+  --sp-2: 16px;
+  --sp-3: 24px;
+  --sp-4: 40px;
+  --sp-5: 64px;
+}
+
+html:lang(ja) {
+  --lh: var(--lh-ja);
+}
+html:lang(ja) body {
+  letter-spacing: 0.02em; /* §4 JA body tracking */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14.5px;
+  line-height: var(--lh);
+}
+
+a {
+  color: var(--ai-600);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--ai-700);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: inherit;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+/* Focus visibility (§10) */
+:focus-visible {
+  outline: 2px solid var(--ai-600);
+  outline-offset: 2px;
+}
+
+/* ── Top chrome ──────────────────────────────────────────────────────────── */
+.chrome {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.wordmark {
+  font-family: var(--mincho);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}
+.wordmark b {
+  color: var(--ai-600);
+  font-weight: 600;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.tab {
+  padding: 7px 14px;
+  border-radius: 6px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.tab.on {
+  background: var(--ai-100);
+  color: var(--ai-700);
+  font-weight: 500;
+}
+
+/* Locale switcher (pill, §7) */
+.lang {
+  display: flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  overflow: hidden;
+  font-size: 12.5px;
+}
+.lang button {
+  padding: 5px 14px;
+  color: var(--ink-soft);
+  min-height: 32px;
+}
+.lang button.on {
+  background: var(--ai-600);
+  color: #fff;
+}
+
+/* ── Layout + signature tategaki (§5) ────────────────────────────────────── */
+.screen {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 28px 80px;
+}
+.sec {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 16px;
+  margin-bottom: 56px;
+  animation: rise 0.22s ease-out;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sec {
+    animation: none;
+  }
+}
+.tate {
+  writing-mode: vertical-rl;
+  font-size: 11.5px;
+  letter-spacing: 0.28em;
+  color: var(--ink-soft);
+  border-left: 1px solid var(--line-strong);
+  padding-left: 10px;
+  height: max-content;
+  min-height: 90px;
+}
+.sec-body {
+  border-top: 1px solid var(--line-strong);
+  padding-top: 18px;
+}
+
+h1 {
+  font-family: var(--mincho);
+  font-weight: 600;
+  font-size: 30px;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+h2 {
+  font-family: var(--mincho);
+  font-weight: 600;
+  font-size: 20px;
+  margin-bottom: 14px;
+}
+.sub {
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin-bottom: 20px;
+  max-width: 60ch;
+}
+
+/* ── Components (§7) ─────────────────────────────────────────────────────── */
+.btn {
+  border-radius: 6px;
+  padding: 9px 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn.pri {
+  background: var(--ai-600);
+  color: #fff;
+}
+.btn.pri:hover {
+  background: var(--ai-700);
+}
+.btn.sec {
+  border: 1px solid var(--line-strong);
+}
+.btn.danger {
+  border: 1px solid var(--shu);
+  color: var(--shu);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Tier badges — the visual contract of the AI autonomy tiers (§7) */
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.badge.auto {
+  background: var(--ai-100);
+  color: var(--ai-700);
+}
+.badge.approve {
+  background: #f3ecdc;
+  color: var(--kin);
+}
+.badge.owner {
+  background: #f5e4e0;
+  color: var(--shu);
+}
+.badge.ok {
+  background: #e4eee9;
+  color: var(--matsu);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+th {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  text-align: left;
+  font-weight: 500;
+  border-bottom: 1px solid var(--line-strong);
+  padding: 8px 10px;
+}
+html:lang(ja) th {
+  text-transform: none;
+  letter-spacing: 0.1em;
+}
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px;
+  vertical-align: top;
+}
+td.num {
+  text-align: right;
+  font-family: var(--mono);
+}
+tr.total td {
+  border-bottom: none;
+  font-weight: 600;
+}
+
+/* Checkout (§ mock screenCheckout) — two-column layout + payment-method chips */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.pay {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 10px 0 4px;
+}
+.pay label {
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 9px 14px;
+  font-size: 13px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+}
+.pay input {
+  accent-color: var(--ai-600);
+}
+@media (max-width: 840px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Copilot surface (§7) ────────────────────────────────────────────────── */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.msg {
+  max-width: 640px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.msg.user {
+  align-self: flex-end;
+  background: var(--ai-100);
+  border-color: transparent;
+}
+.msg.claude {
+  border-left: 3px solid var(--ai-600);
+}
+.msg .who {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+html:lang(ja) .msg .who {
+  text-transform: none;
+}
+.plan li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  list-style: none;
+  font-size: 13.5px;
+}
+.cmd {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.cmd input {
+  flex: 1;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font: inherit;
+  background: var(--surface);
+}
+
+/* Forms (§7) */
+.field {
+  margin-bottom: 14px;
+}
+.field label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin-bottom: 5px;
+}
+.field input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font: inherit;
+  background: var(--surface);
+}
+.note {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.error {
+  color: var(--shu);
+  font-size: 13px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+footer {
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 12px;
+  padding: 16px 28px;
+  text-align: center;
+}
+
+@media (max-width: 840px) {
+  .chrome {
+    padding: 12px 16px;
+  }
+  .screen {
+    padding: 24px 16px 60px;
+  }
+}

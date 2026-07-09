@@ -54,7 +54,7 @@ An AI-first web platform for running a workshop business end to end: creating an
 - **⚠ OPEN:** default price points and whether USD is needed at launch or JPY-only.
 
 ### 4.2 Checkout paths
-1. **Individual checkout (B2C):** Stripe — cards, Apple/Google Pay, Konbini. Instant confirmation.
+1. **Individual checkout (B2C):** Airwallex — cards, Apple/Google Pay, Konbini. Instant confirmation.
 2. **Organization purchase (B2B):** seat-pool purchase (e.g., 20 seats usable across cohorts, 12-month validity). Payment by card **or** invoice + bank transfer (請求書 + 振込). Invoices carry the qualified invoice registration number (適格請求書, インボイス制度) and 10% consumption tax. Seats activate on payment receipt; owner can manually activate earlier.
    - **⚠ OPEN:** qualified invoice issuer registration number to print on invoices.
 
@@ -121,8 +121,8 @@ This section is the heart of the product. Every agent action is written to the *
 
 ## 9. Non-functional requirements
 
-- **Stack:** Next.js (App Router, TypeScript), Postgres + Prisma, pgvector, background job queue, Stripe, Anthropic API, Resend (email), object storage for materials/PDFs.
-- **Security:** RBAC enforced at API layer; org data isolated via row-level security; audit log for all financial and AI actions; no card data touches our servers (Stripe-hosted elements).
+- **Stack:** Next.js (App Router, TypeScript), Postgres + Prisma, pgvector, background job queue, Airwallex, Anthropic API, Resend (email), object storage for materials/PDFs.
+- **Security:** RBAC enforced at API layer; org data isolated via row-level security; audit log for all financial and AI actions; no card data touches our servers (Airwallex-hosted elements).
 - **Privacy:** participant personal data visible to their org only per §2 boundary; data export and deletion on request (APPI + GDPR-style baseline).
 - **Performance:** landing pages statically generated, < 1.5s LCP target; admin app can be dynamic.
 - **Reliability:** payment webhooks idempotent; job queue with retries; daily DB backups.
@@ -134,13 +134,13 @@ This section is the heart of the product. Every agent action is written to the *
 
 | Gate | Scope | Exit criteria |
 |---|---|---|
-| **M0 Foundation** | Auth, RBAC, bilingual data model, Stripe sandbox, agent skeleton + ledger | Copilot can execute one end-to-end toy command with approval flow |
+| **M0 Foundation** | Auth, RBAC, bilingual data model, Airwallex sandbox, agent skeleton + ledger | Copilot can execute one end-to-end toy command with approval flow |
 | **M1 Workshop core** | Workshop/cohort/session CRUD, catalog, landing pages | A workshop can be authored in EN, localized to JA, and published |
 | **M2 Commerce** | B2C checkout, promo engine, B2B seat pools, JP invoicing, refunds | Test purchases succeed in all payment paths incl. 振込 invoice |
 | **M3 Org portal** | Seat assignment, org dashboards, invoices/POs | An org admin can buy 10 seats, assign 5 employees, download an invoice |
 | **M4 Participant layer** | Progress, quizzes, certificates, concierge | A participant completes a cohort and receives a verifiable bilingual certificate |
 | **M5 AI operations** | Full copilot command set, generative marketing, predictive ops, narrative analytics | The September-launch command from §7 works end to end |
-| **M6 Hardening & launch** | Load/security testing, native JA review, Stripe live, observability | Go-live checklist signed off |
+| **M6 Hardening & launch** | Load/security testing, native JA review, Airwallex live, observability | Go-live checklist signed off |
 
 ---
 
