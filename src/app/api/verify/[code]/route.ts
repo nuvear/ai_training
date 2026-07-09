@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/server/db/client';
 import type { BilingualText } from '@/server/ai/i18n-content';
+import { enforceRateLimit, RATE_LIMITS } from '@/server/rate-limit';
 
 // GET /api/verify/[code] — PUBLIC (UNAUTHENTICATED) certificate verification.
 // Looks up a certificate by verifyCode and returns ONLY { valid, participantName,
@@ -17,7 +18,10 @@ function displayName(name: unknown, fallback: string): string {
   return fallback;
 }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
+  const limited = enforceRateLimit(req, RATE_LIMITS.verify);
+  if (limited) return limited;
+
   const { code } = await params;
 
   const certificate = await prisma.certificate.findUnique({

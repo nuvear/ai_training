@@ -3,14 +3,18 @@ import { requireSession } from '@/server/auth/rbac';
 import { prisma } from '@/server/db/client';
 import { evaluateCompletionElevated } from '@/server/domain/completion';
 import { toErrorResponse } from '@/server/http';
+import { enforceRateLimit, RATE_LIMITS } from '@/server/rate-limit';
 
 // GET /api/checkin/[token] — participant self check-in (COPILOT_TOOLS §5 /
 // PRODUCT_SPEC §5). The session carries a `checkinToken`; the SIGNED-IN
 // participant is marked `present` for that session (method `self_checkin`), then
 // their completion is re-evaluated (which auto-issues a certificate on the first
 // satisfaction). Idempotent — a second click keeps them present, no double event.
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   try {
+    const limited = enforceRateLimit(req, RATE_LIMITS.checkin);
+    if (limited) return limited;
+
     const { token } = await params;
     const session = await requireSession();
 

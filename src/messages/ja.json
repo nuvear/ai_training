@@ -93,7 +93,7 @@
     "tateLabel": "コパイロット",
     "greeting": "{name}さん、こんにちは。AIコパイロットです。ご用件をお聞かせください。",
     "heading": "コパイロット",
-    "statsHeading": "おかえりなさい、{name}さん。{count, plural, =0 {承認待ちの項目はありません。} other {承認待ちが{count}件あります。}}",
+    "statsHeading": "おかえりなさい、{name}さん。{count, plural, =0 {承認待ちの項目はありません。} other {承認待ちが#件あります。}}",
     "statsLine": "今週：売上 {sales} · 新規申込 {enrollments}件 · 稼働中コホート {cohorts}件",
     "aiLabel": "コパイロット（AI）",
     "you": "あなた",

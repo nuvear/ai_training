@@ -35,6 +35,9 @@ export default defineConfig({
       AIRWALLEX_CLIENT_ID: '',
       ANTHROPIC_API_KEY: '',
       RESEND_API_KEY: '',
+      // Repeated sign-ins from one localhost IP would trip the magic-link limiter;
+      // disable route-level limiting here (the limiter is unit-tested directly).
+      RATE_LIMIT_DISABLED: '1',
     },
   },
 });

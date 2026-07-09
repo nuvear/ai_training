@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getSession } from '@/server/auth/session';
 import { runConcierge, type ConciergeContext } from '@/server/ai/concierge';
 import { toErrorResponse } from '@/server/http';
+import { enforceRateLimit, RATE_LIMITS } from '@/server/rate-limit';
 
 // POST /api/concierge — PUBLIC concierge chatbot (COPILOT_TOOLS §7). No auth
 // required (anonymous visitors welcome); if a session cookie is present the
@@ -18,6 +19,9 @@ const body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = enforceRateLimit(req, RATE_LIMITS.concierge);
+    if (limited) return limited;
+
     const parsed = body.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: 'message is required' }, { status: 400 });
